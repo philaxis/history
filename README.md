@@ -17,4 +17,16 @@ History automatically records when notes and canvases are created or edited, the
 ````
 3. To keep the same calendar in the right sidebar, run **History: Open history calendar** from the command palette.
 
+Optionally scale a note-embedded calendar to a maximum width; its controls and height shrink proportionally. In editing or reading mode, hover the calendar and drag its bottom-right handle; the new `max-width` is saved back to the code block. Sidebar calendars use the same proportional scaling when their pane is resized, but do not show the handle.
+
+````markdown
+```history
+max-width: 500
+mode: number
+align: center
+```
+````
+
+`mode: number` always shows purple and mint event counts instead of dots; omit it for automatic display. `align` accepts `left`, `center`, or `right`.
+
 Calendar dates also integrate with Obsidian's Daily Notes core plugin. Dates with an existing daily note are bold and underlined; clicking a date opens its note or asks before creating a missing one with your configured folder, format, and template.

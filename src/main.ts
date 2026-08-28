@@ -10,8 +10,9 @@ import {
 import {
 	HISTORY_CODE_BLOCK,
 	HistoryCalendarRenderer,
-	parseCalendarOptions,
 } from './calendar';
+import { updateCalendarMaxWidth } from './calendar-width';
+import { parseCalendarOptions } from './calendar-options';
 import {
 	appendCanvasHistoryDate,
 	getCanvasHistory,
@@ -95,6 +96,24 @@ export default class HistoryPlugin extends Plugin {
 					element,
 					context.sourcePath,
 					source,
+					async (width) => {
+						const section = context.getSectionInfo(element);
+						const file = this.app.vault.getAbstractFileByPath(
+							context.sourcePath,
+						);
+						if (section === null || !(file instanceof TFile)) {
+							throw new Error('Unable to locate the history code block.');
+						}
+
+						await this.app.vault.process(file, (content) =>
+							updateCalendarMaxWidth(
+								content,
+								section.lineStart,
+								section.lineEnd,
+								width,
+							),
+						);
+					},
 				);
 				context.addChild(renderer);
 			},
@@ -143,6 +162,7 @@ export default class HistoryPlugin extends Plugin {
 		containerEl: HTMLElement,
 		sourcePath: string,
 		source: string,
+		onWidthChange: ((width: number) => Promise<void>) | null = null,
 	): HistoryCalendarRenderer {
 		const renderer = new HistoryCalendarRenderer(
 			containerEl,
@@ -150,6 +170,7 @@ export default class HistoryPlugin extends Plugin {
 			sourcePath,
 			() => this.settings,
 			parseCalendarOptions(source),
+			onWidthChange,
 			() => this.calendarRenderers.delete(renderer),
 		);
 		this.calendarRenderers.add(renderer);

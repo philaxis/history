@@ -17,6 +17,8 @@ export type HistoryMessages = {
 	dailyNoteCreatePrompt: (date: string) => string;
 	cancel: string;
 	create: string;
+	resizeCalendar: string;
+	calendarWidthSaveFailed: string;
 	autoTrackEdits: string;
 	autoTrackEditsDescription: string;
 	frontmatterProperty: string;
@@ -50,6 +52,8 @@ const ENGLISH: HistoryMessages = {
 		`The daily note for ${date} does not exist. Create it?`,
 	cancel: 'Cancel',
 	create: 'Create',
+	resizeCalendar: 'Resize calendar',
+	calendarWidthSaveFailed: 'Failed to save the calendar width.',
 	autoTrackEdits: 'Auto-track edits',
 	autoTrackEditsDescription:
 		'Add a date when the active Markdown note or canvas is modified.',
@@ -80,6 +84,8 @@ const KOREAN: HistoryMessages = {
 		`${date}의 일일 노트가 없습니다. 생성할까요?`,
 	cancel: '취소',
 	create: '생성',
+	resizeCalendar: '달력 크기 조절',
+	calendarWidthSaveFailed: '달력 너비를 저장하지 못했습니다.',
 	autoTrackEdits: '편집 자동 추적',
 	autoTrackEditsDescription:
 		'활성 Markdown 노트나 캔버스가 수정되면 날짜를 추가합니다.',

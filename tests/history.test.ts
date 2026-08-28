@@ -3,6 +3,11 @@ import {
 	getCanvasHistory,
 	getCanvasTrackingState,
 } from '../src/canvas-data.ts';
+import { parseCalendarOptions } from '../src/calendar-options.ts';
+import {
+	getCalendarScale,
+	updateCalendarMaxWidth,
+} from '../src/calendar-width.ts';
 import { renderDailyNoteTemplate } from '../src/daily-note-template.ts';
 import { getHistoryMessages } from '../src/i18n.ts';
 import { isPointInTriangle } from '../src/pointer-intent.ts';
@@ -72,6 +77,44 @@ assert(
 	) ===
 		'2026-08-28 | date:YYYY/MM | 14:30 | time:HH | 2026-08-28',
 	'Daily note template tokens were not replaced.',
+);
+assert(
+	updateCalendarMaxWidth(
+		'Before\n```history\nfolder: notes\n```\nAfter',
+		1,
+		3,
+		420,
+	) === 'Before\n```history\nfolder: notes\nmax-width: 420\n```\nAfter',
+	'Missing calendar max-width was not saved.',
+);
+assert(
+	updateCalendarMaxWidth(
+		'```history\r\nmax-width: 500\r\n```',
+		0,
+		2,
+		360,
+	) === '```history\r\nmax-width: 360\r\n```',
+	'Existing calendar max-width was not updated.',
+);
+assert(
+	JSON.stringify(getCalendarScale(500, 800, 800)) ===
+		'{"width":500,"scale":0.625}',
+	'Calendar max-width did not scale both dimensions proportionally.',
+);
+assert(
+	JSON.stringify(getCalendarScale(null, 240, 300)) ===
+		'{"width":240,"scale":0.8}',
+	'Sidebar resizing did not use the proportional calendar scale.',
+);
+assert(
+	JSON.stringify(parseCalendarOptions('mode: number\nalign: right')) ===
+		'{"folder":null,"maxWidth":null,"mode":"number","align":"right"}',
+	'Calendar number mode or alignment was not parsed.',
+);
+assert(
+	JSON.stringify(parseCalendarOptions('mode: dots\nalign: middle')) ===
+		'{"folder":null,"maxWidth":null,"mode":"auto","align":"left"}',
+	'Invalid calendar display options did not use safe defaults.',
 );
 assert(
 	isPointInTriangle(

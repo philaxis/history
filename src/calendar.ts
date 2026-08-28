@@ -18,6 +18,8 @@ import {
 
 import { getCanvasHistory } from './canvas-data';
 import { CANVAS_PROPERTY_NAME, resolveCanvasTarget } from './canvas';
+import { getCalendarScale } from './calendar-width';
+import type { CalendarOptions } from './calendar-options';
 import {
 	getDailyNote,
 	getDailyNoteSettings,
@@ -40,13 +42,10 @@ const TOOLTIP_MAX_WIDTH = 300;
 const TOOLTIP_CLOSE_DELAY = 150;
 const TOOLTIP_INTENT_DELAY = 300;
 const LINK_PREVIEW_DELAY = 1_000;
+const MIN_RESIZABLE_WIDTH = 160;
 
 type CalendarEventKind = 'ctime' | 'history';
 type MomentValue = ReturnType<typeof moment>;
-
-interface CalendarOptions {
-	folder: string | null;
-}
 
 interface CalendarEvent {
 	kind: CalendarEventKind;
@@ -99,21 +98,6 @@ class DailyNoteCreateModal extends Modal {
 	}
 }
 
-export function parseCalendarOptions(source: string): CalendarOptions {
-	let folder: string | null = null;
-
-	for (const line of source.split('\n')) {
-		const match = /^\s*folder\s*:\s*(.*?)\s*$/.exec(line);
-		if (!match?.[1]) {
-			continue;
-		}
-
-		folder = match[1].replace(/^(['"])(.*)\1$/, '$2').replace(/^\/+|\/+$/g, '');
-	}
-
-	return { folder };
-}
-
 export class HistoryCalendarRenderer extends MarkdownRenderChild {
 	hoverPopover: HoverPopover | null = null;
 
@@ -130,6 +114,8 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 	private tooltipCandidate: TooltipCandidate | null = null;
 	private tooltipSafeTriangle: [Point, Point, Point] | null = null;
 	private linkPreviewTimer: number | null = null;
+	private calendarWidth: number | null;
+	private calendarBaseWidth: number | null = null;
 
 	constructor(
 		containerEl: HTMLElement,
@@ -137,19 +123,17 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 		private readonly sourcePath: string,
 		private readonly getSettings: () => HistorySettings,
 		private readonly options: CalendarOptions,
+		private readonly onWidthChange: ((width: number) => Promise<void>) | null,
 		private readonly onDispose: () => void,
 	) {
 		super(containerEl);
+		this.calendarWidth = options.maxWidth;
 	}
 
 	onload(): void {
 		void this.renderCalendar();
 
 		const ownerDocument = this.containerEl.ownerDocument;
-		const ownerWindow = this.getOwnerWindow();
-		this.registerDomEvent(ownerWindow, 'resize', () => {
-			this.scheduleTooltipPosition();
-		});
 		this.registerDomEvent(
 			ownerDocument,
 			'scroll',
@@ -163,7 +147,8 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 			true,
 		);
 		this.registerEvent(
-			this.app.workspace.on('layout-change', () => {
+			this.app.workspace.on('resize', () => {
+				this.applyCalendarWidth();
 				this.scheduleTooltipPosition();
 			}),
 		);
@@ -225,6 +210,17 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 
 		this.containerEl.empty();
 		this.containerEl.addClass('history-calendar');
+		this.containerEl.toggleClass(
+			'is-number-mode',
+			this.options.mode === 'number',
+		);
+		for (const align of ['left', 'center', 'right'] as const) {
+			this.containerEl.toggleClass(
+				`is-align-${align}`,
+				this.options.align === align,
+			);
+		}
+		this.applyCalendarWidth();
 
 		const frame = this.containerEl.createDiv({ cls: 'history-calendar__frame' });
 		const header = frame.createDiv({ cls: 'history-calendar__header' });
@@ -286,7 +282,7 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 				cls: 'history-calendar__day',
 				attr: {
 					type: 'button',
-					'aria-label': date.format('LL'),
+					'aria-description': date.format('LL'),
 				},
 			});
 
@@ -326,6 +322,106 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 				this.renderEvents(cell, events);
 			}
 		}
+
+		if (this.onWidthChange !== null) {
+			this.createResizeHandle();
+		}
+	}
+
+	private applyCalendarWidth(): void {
+		const availableWidth =
+			this.containerEl.parentElement?.getBoundingClientRect().width ?? 0;
+		if (this.calendarBaseWidth === null && availableWidth > 0) {
+			this.calendarBaseWidth = availableWidth;
+		}
+		const baseWidth = this.calendarBaseWidth ?? availableWidth;
+		const scaled = getCalendarScale(
+			this.calendarWidth,
+			availableWidth,
+			baseWidth,
+		);
+		this.containerEl.setCssProps({
+			'--history-calendar-width': scaled === null
+				? this.calendarWidth === null ? '100%' : `${Math.round(this.calendarWidth)}px`
+				: `${scaled.width}px`,
+			'--history-calendar-frame-width': scaled === null
+				? '100%'
+				: `${baseWidth}px`,
+			'--history-calendar-scale': String(scaled?.scale ?? 1),
+		});
+	}
+
+	private resizeCalendar(width: number): void {
+		const availableWidth =
+			this.containerEl.parentElement?.getBoundingClientRect().width ?? width;
+		const minimumWidth = Math.min(MIN_RESIZABLE_WIDTH, availableWidth);
+		this.calendarWidth = Math.min(
+			Math.max(width, minimumWidth),
+			availableWidth,
+		);
+		this.applyCalendarWidth();
+		this.scheduleTooltipPosition();
+	}
+
+	private persistCalendarWidth(): void {
+		if (this.calendarWidth === null || this.onWidthChange === null) {
+			return;
+		}
+
+		void this.onWidthChange(Math.round(this.calendarWidth)).catch((error) => {
+			console.error('Failed to save the calendar width.', error);
+			new Notice(this.messages.calendarWidthSaveFailed);
+		});
+	}
+
+	private createResizeHandle(): void {
+		const handle = this.containerEl.createEl('button', {
+			cls: 'history-calendar__resize-handle',
+			attr: {
+				type: 'button',
+				'aria-label': this.messages.resizeCalendar,
+			},
+		});
+		let startX = 0;
+		let startWidth = 0;
+
+		handle.addEventListener('pointerdown', (event) => {
+			event.preventDefault();
+			startX = event.clientX;
+			startWidth = this.containerEl.getBoundingClientRect().width;
+			handle.setPointerCapture(event.pointerId);
+			handle.addClass('is-resizing');
+		});
+		handle.addEventListener('pointermove', (event) => {
+			if (!handle.hasPointerCapture(event.pointerId)) {
+				return;
+			}
+			this.resizeCalendar(startWidth + event.clientX - startX);
+		});
+		const finishResize = (event: PointerEvent): void => {
+			const wasResizing = handle.hasPointerCapture(event.pointerId);
+			if (wasResizing) {
+				handle.releasePointerCapture(event.pointerId);
+			}
+			handle.removeClass('is-resizing');
+			if (wasResizing) {
+				this.persistCalendarWidth();
+			}
+		};
+		handle.addEventListener('pointerup', finishResize);
+		handle.addEventListener('pointercancel', finishResize);
+		handle.addEventListener('keydown', (event) => {
+			if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
+				return;
+			}
+			event.preventDefault();
+			const direction = event.key === 'ArrowLeft' ? -1 : 1;
+			const step = event.shiftKey ? 50 : 10;
+			this.resizeCalendar(
+				this.containerEl.getBoundingClientRect().width + direction * step,
+			);
+			this.persistCalendarWidth();
+		});
 	}
 
 	private async collectEvents(): Promise<
