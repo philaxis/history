@@ -12,7 +12,11 @@ import {
 	HistoryCalendarRenderer,
 } from './calendar';
 import { updateCalendarMaxWidth } from './calendar-width';
-import { parseCalendarOptions } from './calendar-options';
+import {
+	MAX_CALENDAR_FONT_SIZE,
+	MIN_CALENDAR_FONT_SIZE,
+	parseCalendarOptions,
+} from './calendar-options';
 import {
 	appendCanvasHistoryDate,
 	getCanvasHistory,
@@ -56,7 +60,7 @@ class HistoryCalendarView extends ItemView {
 		this.contentEl.empty();
 		this.contentEl.addClass('history-calendar-view');
 		this.addChild(
-			this.plugin.createCalendarRenderer(this.contentEl, '', ''),
+			this.plugin.createCalendarRenderer(this.contentEl, '', '', null, true),
 		);
 	}
 }
@@ -163,6 +167,7 @@ export default class HistoryPlugin extends Plugin {
 		sourcePath: string,
 		source: string,
 		onWidthChange: ((width: number) => Promise<void>) | null = null,
+		isSidebar = false,
 	): HistoryCalendarRenderer {
 		const renderer = new HistoryCalendarRenderer(
 			containerEl,
@@ -171,6 +176,7 @@ export default class HistoryPlugin extends Plugin {
 			() => this.settings,
 			parseCalendarOptions(source),
 			onWidthChange,
+			isSidebar,
 			() => this.calendarRenderers.delete(renderer),
 		);
 		this.calendarRenderers.add(renderer);
@@ -217,6 +223,20 @@ export default class HistoryPlugin extends Plugin {
 				typeof savedSettings?.autoTrackingEnabled === 'boolean'
 					? savedSettings.autoTrackingEnabled
 					: DEFAULT_SETTINGS.autoTrackingEnabled,
+			sidebarCellRatio:
+				typeof savedSettings?.sidebarCellRatio === 'number' &&
+				savedSettings.sidebarCellRatio > 0
+					? savedSettings.sidebarCellRatio
+					: DEFAULT_SETTINGS.sidebarCellRatio,
+			sidebarFontSize:
+				typeof savedSettings?.sidebarFontSize === 'number' &&
+				savedSettings.sidebarFontSize >= MIN_CALENDAR_FONT_SIZE &&
+				savedSettings.sidebarFontSize <= MAX_CALENDAR_FONT_SIZE
+					? savedSettings.sidebarFontSize
+					: DEFAULT_SETTINGS.sidebarFontSize,
+			sidebarMode: savedSettings?.sidebarMode === 'dots'
+				? 'dots'
+				: DEFAULT_SETTINGS.sidebarMode,
 		};
 
 		if (savedPropertyName === 'edited') {

@@ -19,6 +19,15 @@ export type HistoryMessages = {
 	create: string;
 	resizeCalendar: string;
 	calendarWidthSaveFailed: string;
+	sidebarCellRatio: string;
+	sidebarCellRatioDescription: string;
+	sidebarFontSize: string;
+	sidebarFontSizeDescription: string;
+	sidebarSettings: string;
+	sidebarMarkerMode: string;
+	sidebarMarkerModeDescription: string;
+	markerNumbers: string;
+	markerDots: string;
 	autoTrackEdits: string;
 	autoTrackEditsDescription: string;
 	frontmatterProperty: string;
@@ -54,6 +63,18 @@ const ENGLISH: HistoryMessages = {
 	create: 'Create',
 	resizeCalendar: 'Resize calendar',
 	calendarWidthSaveFailed: 'Failed to save the calendar width.',
+	sidebarCellRatio: 'Sidebar cell ratio',
+	sidebarCellRatioDescription:
+		'Cell width divided by height in the sidebar calendar. Default: 0.6.',
+	sidebarFontSize: 'Sidebar font size',
+	sidebarFontSizeDescription:
+		'Text size multiplier for the sidebar calendar, from 0.5 to 2.0. Default: 1.6.',
+	sidebarSettings: 'Sidebar calendar',
+	sidebarMarkerMode: 'Sidebar markers',
+	sidebarMarkerModeDescription:
+		'Show event totals as numbers or individual dots. Default: numbers.',
+	markerNumbers: 'Numbers',
+	markerDots: 'Dots',
 	autoTrackEdits: 'Auto-track edits',
 	autoTrackEditsDescription:
 		'Add a date when the active Markdown note or canvas is modified.',
@@ -86,6 +107,18 @@ const KOREAN: HistoryMessages = {
 	create: '생성',
 	resizeCalendar: '달력 크기 조절',
 	calendarWidthSaveFailed: '달력 너비를 저장하지 못했습니다.',
+	sidebarCellRatio: '사이드바 셀 비율',
+	sidebarCellRatioDescription:
+		'사이드바 달력 셀의 가로 ÷ 세로 비율입니다. 기본값: 0.6.',
+	sidebarFontSize: '사이드바 글자 배율',
+	sidebarFontSizeDescription:
+		'사이드바 달력 글자의 크기 배율입니다. 0.5–2.0, 기본값: 1.6.',
+	sidebarSettings: '사이드바 달력',
+	sidebarMarkerMode: '사이드바 마커',
+	sidebarMarkerModeDescription:
+		'이벤트 합계를 숫자 또는 개별 점으로 표시합니다. 기본값: 숫자.',
+	markerNumbers: '숫자',
+	markerDots: '점',
 	autoTrackEdits: '편집 자동 추적',
 	autoTrackEditsDescription:
 		'활성 Markdown 노트나 캔버스가 수정되면 날짜를 추가합니다.',

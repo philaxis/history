@@ -19,7 +19,11 @@ import {
 import { getCanvasHistory } from './canvas-data';
 import { CANVAS_PROPERTY_NAME, resolveCanvasTarget } from './canvas';
 import { getCalendarScale } from './calendar-width';
-import type { CalendarOptions } from './calendar-options';
+import {
+	DEFAULT_CALENDAR_FONT_SIZE,
+	DEFAULT_SIDEBAR_CELL_RATIO,
+	type CalendarOptions,
+} from './calendar-options';
 import {
 	getDailyNote,
 	getDailyNoteSettings,
@@ -32,7 +36,7 @@ import type { HistorySettings } from './settings';
 export const HISTORY_CODE_BLOCK = 'history';
 
 const DAY_KEY_FORMAT = 'YYYY-MM-DD';
-const MAX_VISIBLE_EVENTS = 10;
+const MAX_VISIBLE_EVENTS = 12;
 const TOOLTIP_GAP = 6;
 const TOOLTIP_LAYOUT_MARGIN = 8;
 const TOOLTIP_MAX_HEIGHT = 280;
@@ -43,6 +47,9 @@ const TOOLTIP_CLOSE_DELAY = 150;
 const TOOLTIP_INTENT_DELAY = 300;
 const LINK_PREVIEW_DELAY = 1_000;
 const MIN_RESIZABLE_WIDTH = 160;
+const CALENDAR_BASE_WIDTH = 800;
+const CALENDAR_CONTENT_WIDTH = CALENDAR_BASE_WIDTH - 20;
+const FONT_SCALE_BASELINE = 1.2;
 
 type CalendarEventKind = 'ctime' | 'history';
 type MomentValue = ReturnType<typeof moment>;
@@ -115,7 +122,6 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 	private tooltipSafeTriangle: [Point, Point, Point] | null = null;
 	private linkPreviewTimer: number | null = null;
 	private calendarWidth: number | null;
-	private calendarBaseWidth: number | null = null;
 
 	constructor(
 		containerEl: HTMLElement,
@@ -124,16 +130,26 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 		private readonly getSettings: () => HistorySettings,
 		private readonly options: CalendarOptions,
 		private readonly onWidthChange: ((width: number) => Promise<void>) | null,
+		private readonly isSidebar: boolean,
 		private readonly onDispose: () => void,
 	) {
 		super(containerEl);
-		this.calendarWidth = options.maxWidth;
+		this.calendarWidth = isSidebar ? null : options.maxWidth;
 	}
 
 	onload(): void {
 		void this.renderCalendar();
 
 		const ownerDocument = this.containerEl.ownerDocument;
+		const resizeObserver = new ResizeObserver(() => {
+			this.applyCalendarWidth();
+			this.scheduleTooltipPosition();
+		});
+		const widthContainer = this.containerEl.parentElement;
+		if (widthContainer !== null) {
+			resizeObserver.observe(widthContainer);
+		}
+		this.register(() => resizeObserver.disconnect());
 		this.registerDomEvent(
 			ownerDocument,
 			'scroll',
@@ -148,7 +164,6 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 		);
 		this.registerEvent(
 			this.app.workspace.on('resize', () => {
-				this.applyCalendarWidth();
 				this.scheduleTooltipPosition();
 			}),
 		);
@@ -212,7 +227,9 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 		this.containerEl.addClass('history-calendar');
 		this.containerEl.toggleClass(
 			'is-number-mode',
-			this.options.mode === 'number',
+			this.isSidebar
+				? this.getSettings().sidebarMode === 'number'
+				: this.options.mode === 'number',
 		);
 		for (const align of ['left', 'center', 'right'] as const) {
 			this.containerEl.toggleClass(
@@ -331,23 +348,27 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 	private applyCalendarWidth(): void {
 		const availableWidth =
 			this.containerEl.parentElement?.getBoundingClientRect().width ?? 0;
-		if (this.calendarBaseWidth === null && availableWidth > 0) {
-			this.calendarBaseWidth = availableWidth;
-		}
-		const baseWidth = this.calendarBaseWidth ?? availableWidth;
 		const scaled = getCalendarScale(
 			this.calendarWidth,
 			availableWidth,
-			baseWidth,
+			CALENDAR_BASE_WIDTH,
 		);
+		const cellRatio = this.isSidebar
+			? this.getSettings().sidebarCellRatio || DEFAULT_SIDEBAR_CELL_RATIO
+			: this.options.ratio;
+		const fontSize = this.isSidebar
+			? this.getSettings().sidebarFontSize || DEFAULT_CALENDAR_FONT_SIZE
+			: this.options.fontSize;
 		this.containerEl.setCssProps({
 			'--history-calendar-width': scaled === null
 				? this.calendarWidth === null ? '100%' : `${Math.round(this.calendarWidth)}px`
 				: `${scaled.width}px`,
 			'--history-calendar-frame-width': scaled === null
 				? '100%'
-				: `${baseWidth}px`,
+				: `${CALENDAR_BASE_WIDTH}px`,
 			'--history-calendar-scale': String(scaled?.scale ?? 1),
+			'--history-calendar-cell-height': `${CALENDAR_CONTENT_WIDTH / 7 / cellRatio}px`,
+			'--history-calendar-font-scale': String(fontSize * FONT_SCALE_BASELINE),
 		});
 	}
 
@@ -530,27 +551,34 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 
 	private renderEvents(cell: HTMLElement, events: CalendarEvent[]): void {
 		const dots = cell.createSpan({ cls: 'history-calendar__dots' });
-
-		for (const event of events.slice(0, MAX_VISIBLE_EVENTS)) {
-			dots.createSpan({
-				cls: `history-calendar__dot is-${event.kind}`,
-				attr: {
-					'aria-hidden': 'true',
-				},
-			});
+		const visibleEvents = events.slice(0, MAX_VISIBLE_EVENTS);
+		for (let start = 0; start < visibleEvents.length; start += 6) {
+			const row = dots.createSpan({ cls: 'history-calendar__dot-row' });
+			for (const event of visibleEvents.slice(start, start + 6)) {
+				row.createSpan({
+					cls: `history-calendar__dot is-${event.kind}`,
+					attr: {
+						'aria-hidden': 'true',
+					},
+				});
+			}
 		}
 		if (events.length > MAX_VISIBLE_EVENTS) {
 			const hiddenCount = events.length - MAX_VISIBLE_EVENTS;
-			dots.createSpan({
+			const row = dots.createSpan({
+				cls: 'history-calendar__dot-row history-calendar__more-row',
+			});
+			row.createSpan({
 				cls: 'history-calendar__more',
 				text: `+${hiddenCount}`,
 				attr: { 'aria-label': this.messages.moreEvents(hiddenCount) },
 			});
 		}
+		const countRow = dots.createSpan({ cls: 'history-calendar__count-row' });
 		for (const kind of ['ctime', 'history'] as const) {
 			const count = events.filter((event) => event.kind === kind).length;
 			if (count > 0) {
-				dots.createSpan({
+				countRow.createSpan({
 					cls: `history-calendar__count is-${kind}`,
 					text: String(count),
 				});

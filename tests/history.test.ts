@@ -3,7 +3,12 @@ import {
 	getCanvasHistory,
 	getCanvasTrackingState,
 } from '../src/canvas-data.ts';
-import { parseCalendarOptions } from '../src/calendar-options.ts';
+import {
+	DEFAULT_SIDEBAR_CELL_RATIO,
+	DEFAULT_SIDEBAR_FONT_SIZE,
+	DEFAULT_SIDEBAR_MODE,
+	parseCalendarOptions,
+} from '../src/calendar-options.ts';
 import {
 	getCalendarScale,
 	updateCalendarMaxWidth,
@@ -102,19 +107,34 @@ assert(
 	'Calendar max-width did not scale both dimensions proportionally.',
 );
 assert(
-	JSON.stringify(getCalendarScale(null, 240, 300)) ===
-		'{"width":240,"scale":0.8}',
-	'Sidebar resizing did not use the proportional calendar scale.',
+	JSON.stringify(getCalendarScale(null, 500, 800)) ===
+		JSON.stringify(getCalendarScale(500, 800, 800)),
+	'Sidebar and embedded calendars did not use the same scale.',
 );
 assert(
 	JSON.stringify(parseCalendarOptions('mode: number\nalign: right')) ===
-		'{"folder":null,"maxWidth":null,"mode":"number","align":"right"}',
+		'{"folder":null,"maxWidth":502,"mode":"number","align":"right","ratio":1.2,"fontSize":1}',
 	'Calendar number mode or alignment was not parsed.',
 );
 assert(
 	JSON.stringify(parseCalendarOptions('mode: dots\nalign: middle')) ===
-		'{"folder":null,"maxWidth":null,"mode":"auto","align":"left"}',
+		'{"folder":null,"maxWidth":502,"mode":"auto","align":"left","ratio":1.2,"fontSize":1}',
 	'Invalid calendar display options did not use safe defaults.',
+);
+assert(
+	parseCalendarOptions('ratio: 1.2').ratio === 1.2,
+	'Calendar cell ratio was not parsed.',
+);
+assert(
+	parseCalendarOptions('font-size: 1.2').fontSize === 1.2 &&
+		parseCalendarOptions('font-size: 9').fontSize === 2,
+	'Calendar font-size multiplier was not parsed or clamped.',
+);
+assert(
+	DEFAULT_SIDEBAR_MODE === 'number' &&
+		DEFAULT_SIDEBAR_CELL_RATIO === 0.6 &&
+		DEFAULT_SIDEBAR_FONT_SIZE === 1.6,
+	'Sidebar calendar defaults changed.',
 );
 assert(
 	isPointInTriangle(
