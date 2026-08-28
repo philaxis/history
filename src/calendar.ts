@@ -8,6 +8,9 @@ import {
 	MarkdownRenderer,
 	Menu,
 	moment,
+	Modal,
+	Notice,
+	Setting,
 	type TAbstractFile,
 	TFile,
 	type WorkspaceLeaf,
@@ -15,6 +18,11 @@ import {
 
 import { getCanvasHistory } from './canvas-data';
 import { CANVAS_PROPERTY_NAME, resolveCanvasTarget } from './canvas';
+import {
+	getDailyNote,
+	getDailyNoteSettings,
+	getOrCreateDailyNote,
+} from './daily-notes';
 import { getHistoryMessages } from './i18n';
 import { isPointInTriangle, type Point } from './pointer-intent';
 import type { HistorySettings } from './settings';
@@ -49,6 +57,46 @@ interface CalendarEvent {
 interface TooltipCandidate {
 	anchorEl: HTMLElement;
 	events: CalendarEvent[];
+}
+
+class DailyNoteCreateModal extends Modal {
+	private confirmed = false;
+
+	constructor(
+		app: App,
+		private readonly title: string,
+		private readonly prompt: string,
+		private readonly cancelLabel: string,
+		private readonly createLabel: string,
+		private readonly resolve: (confirmed: boolean) => void,
+	) {
+		super(app);
+	}
+
+	onOpen(): void {
+		this.setTitle(this.title);
+		this.contentEl.createEl('p', { text: this.prompt });
+		new Setting(this.contentEl)
+			.addButton((button) =>
+				button
+					.setButtonText(this.cancelLabel)
+					.onClick(() => this.close()),
+			)
+			.addButton((button) =>
+				button
+					.setButtonText(this.createLabel)
+					.setCta()
+					.onClick(() => {
+						this.confirmed = true;
+						this.close();
+					}),
+			);
+	}
+
+	onClose(): void {
+		this.contentEl.empty();
+		this.resolve(this.confirmed);
+	}
 }
 
 export function parseCalendarOptions(source: string): CalendarOptions {
@@ -129,7 +177,10 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 		);
 
 		const refreshForFile = (file: TAbstractFile): void => {
-			if (file instanceof TFile && this.includesFile(file)) {
+			if (
+				file instanceof TFile &&
+				(file.extension === 'md' || this.includesFile(file))
+			) {
 				this.refresh();
 			}
 		};
@@ -170,6 +221,7 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 		if (renderGeneration !== this.renderGeneration) {
 			return;
 		}
+		const dailyNoteSettings = getDailyNoteSettings(this.app);
 
 		this.containerEl.empty();
 		this.containerEl.addClass('history-calendar');
@@ -230,7 +282,13 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 		for (let index = 0; index < cellCount; index += 1) {
 			const date = gridStart.clone().add(index, 'days');
 			const dayKey = date.format(DAY_KEY_FORMAT);
-			const cell = grid.createDiv({ cls: 'history-calendar__day' });
+			const cell = grid.createEl('button', {
+				cls: 'history-calendar__day',
+				attr: {
+					type: 'button',
+					'aria-label': date.format('LL'),
+				},
+			});
 
 			if (date.month() !== this.visibleMonth.month()) {
 				cell.addClass('is-outside');
@@ -239,10 +297,19 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 			if (dayKey === todayKey) {
 				cell.addClass('is-today');
 			}
+			if (
+				dailyNoteSettings !== null &&
+				getDailyNote(this.app, date, dailyNoteSettings) !== null
+			) {
+				cell.addClass('has-daily-note');
+			}
 
-			cell.createDiv({
+			cell.createSpan({
 				cls: 'history-calendar__day-number',
 				text: String(date.date()),
+			});
+			cell.addEventListener('click', () => {
+				void this.openDailyNote(date.clone(), cell);
 			});
 
 			const events = [...(eventsByDay.get(dayKey)?.values() ?? [])].sort(
@@ -366,23 +433,35 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 	}
 
 	private renderEvents(cell: HTMLElement, events: CalendarEvent[]): void {
-		const dots = cell.createDiv({ cls: 'history-calendar__dots' });
+		const dots = cell.createSpan({ cls: 'history-calendar__dots' });
 
-		for (const event of events.slice(0, MAX_VISIBLE_EVENTS)) {
-			dots.createSpan({
-				cls: `history-calendar__dot is-${event.kind}`,
-				attr: {
-					'aria-hidden': 'true',
-				},
-			});
-		}
-		if (events.length > MAX_VISIBLE_EVENTS) {
-			const hiddenCount = events.length - MAX_VISIBLE_EVENTS;
-			dots.createSpan({
-				cls: 'history-calendar__more',
-				text: `+${hiddenCount}`,
-				attr: { 'aria-label': this.messages.moreEvents(hiddenCount) },
-			});
+		if (this.containerEl.hasClass('history-calendar-view')) {
+			for (const kind of ['ctime', 'history'] as const) {
+				const count = events.filter((event) => event.kind === kind).length;
+				if (count > 0) {
+					dots.createSpan({
+						cls: `history-calendar__count is-${kind}`,
+						text: String(count),
+					});
+				}
+			}
+		} else {
+			for (const event of events.slice(0, MAX_VISIBLE_EVENTS)) {
+				dots.createSpan({
+					cls: `history-calendar__dot is-${event.kind}`,
+					attr: {
+						'aria-hidden': 'true',
+					},
+				});
+			}
+			if (events.length > MAX_VISIBLE_EVENTS) {
+				const hiddenCount = events.length - MAX_VISIBLE_EVENTS;
+				dots.createSpan({
+					cls: 'history-calendar__more',
+					text: `+${hiddenCount}`,
+					attr: { 'aria-label': this.messages.moreEvents(hiddenCount) },
+				});
+			}
 		}
 
 		cell.addEventListener('pointerenter', (event) => {
@@ -414,6 +493,57 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 		});
 		cell.addEventListener('focusout', () => {
 			this.scheduleTooltipClose();
+		});
+	}
+
+	private async openDailyNote(
+		date: MomentValue,
+		cell: HTMLButtonElement,
+	): Promise<void> {
+		if (cell.hasClass('is-opening')) {
+			return;
+		}
+
+		const settings = getDailyNoteSettings(this.app);
+		if (settings === null) {
+			new Notice(this.messages.dailyNotesDisabled);
+			return;
+		}
+
+		cell.addClass('is-opening');
+		try {
+			if (
+				getDailyNote(this.app, date, settings) === null &&
+				!(await this.confirmDailyNoteCreation(date))
+			) {
+				return;
+			}
+
+			const file = await getOrCreateDailyNote(this.app, date, settings);
+			await this.app.workspace.openLinkText(
+				file.path,
+				this.sourcePath,
+				false,
+			);
+			this.refresh();
+		} catch (error) {
+			console.error('Failed to open or create a daily note.', error);
+			new Notice(this.messages.dailyNoteCreateFailed);
+		} finally {
+			cell.removeClass('is-opening');
+		}
+	}
+
+	private confirmDailyNoteCreation(date: MomentValue): Promise<boolean> {
+		return new Promise((resolve) => {
+			new DailyNoteCreateModal(
+				this.app,
+				this.messages.dailyNoteCreateTitle,
+				this.messages.dailyNoteCreatePrompt(date.format('LL')),
+				this.messages.cancel,
+				this.messages.create,
+				resolve,
+			).open();
 		});
 	}
 

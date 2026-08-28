@@ -9,6 +9,14 @@ export type HistoryMessages = {
 	months: readonly string[];
 	formatYear: (year: number) => string;
 	moreEvents: (count: number) => string;
+	calendarTitle: string;
+	openCalendar: string;
+	dailyNotesDisabled: string;
+	dailyNoteCreateFailed: string;
+	dailyNoteCreateTitle: string;
+	dailyNoteCreatePrompt: (date: string) => string;
+	cancel: string;
+	create: string;
 	autoTrackEdits: string;
 	autoTrackEditsDescription: string;
 	frontmatterProperty: string;
@@ -33,6 +41,15 @@ const ENGLISH: HistoryMessages = {
 	months: NUMERIC_MONTHS,
 	formatYear: String,
 	moreEvents: (count) => `${count} more events`,
+	calendarTitle: 'History calendar',
+	openCalendar: 'Open history calendar',
+	dailyNotesDisabled: 'Enable the Daily Notes core plugin first.',
+	dailyNoteCreateFailed: 'Failed to create the daily note.',
+	dailyNoteCreateTitle: 'Create daily note',
+	dailyNoteCreatePrompt: (date) =>
+		`The daily note for ${date} does not exist. Create it?`,
+	cancel: 'Cancel',
+	create: 'Create',
 	autoTrackEdits: 'Auto-track edits',
 	autoTrackEditsDescription:
 		'Add a date when the active Markdown note or canvas is modified.',
@@ -54,6 +71,15 @@ const KOREAN: HistoryMessages = {
 	selectMonth: '월 선택',
 	weekdays: ['일', '월', '화', '수', '목', '금', '토'],
 	moreEvents: (count) => `${count}개 더 있음`,
+	calendarTitle: '히스토리 달력',
+	openCalendar: '히스토리 달력 열기',
+	dailyNotesDisabled: '먼저 코어 플러그인 「일일 노트」를 활성화하세요.',
+	dailyNoteCreateFailed: '일일 노트를 생성하지 못했습니다.',
+	dailyNoteCreateTitle: '일일 노트 생성',
+	dailyNoteCreatePrompt: (date) =>
+		`${date}의 일일 노트가 없습니다. 생성할까요?`,
+	cancel: '취소',
+	create: '생성',
 	autoTrackEdits: '편집 자동 추적',
 	autoTrackEditsDescription:
 		'활성 Markdown 노트나 캔버스가 수정되면 날짜를 추가합니다.',

@@ -89,9 +89,42 @@
 
 .history-calendar__day {
 	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
 	min-width: 0;
 	min-height: 68px;
 	padding: 7px;
+	border: 0;
+	border-right: 1px solid var(--background-modifier-border);
+	border-bottom: 1px solid var(--background-modifier-border);
+	border-radius: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+	transition:
+		background-color 120ms ease,
+		transform 80ms ease;
+}
+
+.history-calendar__day:hover {
+	background: var(--background-modifier-hover);
+}
+
+.history-calendar__day:active {
+	transform: scale(0.97);
+}
+
+.history-calendar__day:focus-visible {
+	z-index: 1;
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+.history-calendar__day.is-opening {
+	cursor: progress;
 }
 
 .history-calendar__day.is-outside {
@@ -103,11 +136,23 @@
 	background: var(--background-modifier-hover);
 }
 
+.history-calendar__day.is-outside:hover {
+	background: var(--background-modifier-hover);
+}
+
 .history-calendar__day-number {
+	display: inline-block;
 	font-size: var(--font-ui-small);
 }
 
+.history-calendar__day.has-daily-note .history-calendar__day-number {
+	font-weight: var(--font-bold);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
 .history-calendar__dots {
+	align-self: stretch;
 	flex-wrap: wrap;
 	justify-content: center;
 	gap: 5px;
@@ -128,6 +173,20 @@
 
 .history-calendar__dot.is-history {
 	background: var(--color-cyan);
+}
+
+.history-calendar__count {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	line-height: 1;
+}
+
+.history-calendar__count.is-ctime {
+	color: var(--color-purple);
+}
+
+.history-calendar__count.is-history {
+	color: var(--color-cyan);
 }
 
 .history-calendar__more {
@@ -247,5 +306,15 @@
 
 	.history-calendar__month-navigation {
 		grid-area: navigation;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.history-calendar__day {
+		transition: none;
+	}
+
+	.history-calendar__day:active {
+		transform: none;
 	}
 }

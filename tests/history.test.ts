@@ -3,6 +3,7 @@ import {
 	getCanvasHistory,
 	getCanvasTrackingState,
 } from '../src/canvas-data.ts';
+import { renderDailyNoteTemplate } from '../src/daily-note-template.ts';
 import { getHistoryMessages } from '../src/i18n.ts';
 import { isPointInTriangle } from '../src/pointer-intent.ts';
 import {
@@ -61,6 +62,16 @@ assert(
 	getHistoryMessages('en').weekdays.join(',') ===
 		'Sun,Mon,Tue,Wed,Thu,Fri,Sat',
 	'English weekday abbreviations failed.',
+);
+assert(
+	renderDailyNoteTemplate(
+		'{{date}} | {{date:YYYY/MM}} | {{time}} | {{time:HH}} | {{title}}',
+		'2026-08-28',
+		(format) => format === null ? '2026-08-28' : `date:${format}`,
+		(format) => format === null ? '14:30' : `time:${format}`,
+	) ===
+		'2026-08-28 | date:YYYY/MM | 14:30 | time:HH | 2026-08-28',
+	'Daily note template tokens were not replaced.',
 );
 assert(
 	isPointInTriangle(

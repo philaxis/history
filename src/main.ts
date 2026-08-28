@@ -1,4 +1,11 @@
-import { moment, parseYaml, Plugin, TFile } from 'obsidian';
+import {
+	ItemView,
+	moment,
+	parseYaml,
+	Plugin,
+	TFile,
+	type WorkspaceLeaf,
+} from 'obsidian';
 
 import {
 	HISTORY_CODE_BLOCK,
@@ -10,6 +17,7 @@ import {
 	getCanvasHistory,
 	getCanvasTrackingState,
 } from './canvas-data';
+import { getHistoryMessages } from './i18n';
 import {
 	DEFAULT_SETTINGS,
 	type HistorySettings,
@@ -21,6 +29,36 @@ import {
 } from './tracking-state';
 
 const DEBOUNCE_DELAY_MS = 2_500;
+const HISTORY_CALENDAR_VIEW_TYPE = 'history-calendar-view';
+
+class HistoryCalendarView extends ItemView {
+	constructor(
+		leaf: WorkspaceLeaf,
+		private readonly plugin: HistoryPlugin,
+	) {
+		super(leaf);
+	}
+
+	getViewType(): string {
+		return HISTORY_CALENDAR_VIEW_TYPE;
+	}
+
+	getDisplayText(): string {
+		return getHistoryMessages(moment.locale()).calendarTitle;
+	}
+
+	getIcon(): string {
+		return 'calendar-days';
+	}
+
+	async onOpen(): Promise<void> {
+		this.contentEl.empty();
+		this.contentEl.addClass('history-calendar-view');
+		this.addChild(
+			this.plugin.createCalendarRenderer(this.contentEl, '', ''),
+		);
+	}
+}
 
 export default class HistoryPlugin extends Plugin {
 	settings: HistorySettings = { ...DEFAULT_SETTINGS };
@@ -34,6 +72,17 @@ export default class HistoryPlugin extends Plugin {
 		await this.loadSettings();
 
 		this.addSettingTab(new HistorySettingTab(this.app, this));
+		this.registerView(
+			HISTORY_CALENDAR_VIEW_TYPE,
+			(leaf) => new HistoryCalendarView(leaf, this),
+		);
+		this.addCommand({
+			id: 'open-calendar',
+			name: getHistoryMessages(moment.locale()).openCalendar,
+			callback: () => {
+				void this.openCalendarView();
+			},
+		});
 		this.registerHoverLinkSource(this.manifest.id, {
 			display: this.manifest.name,
 			defaultMod: false,
@@ -42,16 +91,11 @@ export default class HistoryPlugin extends Plugin {
 		this.registerMarkdownCodeBlockProcessor(
 			HISTORY_CODE_BLOCK,
 			(source, element, context) => {
-				const renderer = new HistoryCalendarRenderer(
+				const renderer = this.createCalendarRenderer(
 					element,
-					this.app,
 					context.sourcePath,
-					() => this.settings,
-					parseCalendarOptions(source),
-					() => this.calendarRenderers.delete(renderer),
+					source,
 				);
-
-				this.calendarRenderers.add(renderer);
 				context.addChild(renderer);
 			},
 		);
@@ -93,6 +137,41 @@ export default class HistoryPlugin extends Plugin {
 		this.filesBeingUpdated.clear();
 		this.calendarRenderers.clear();
 		this.trackingStates.clear();
+	}
+
+	createCalendarRenderer(
+		containerEl: HTMLElement,
+		sourcePath: string,
+		source: string,
+	): HistoryCalendarRenderer {
+		const renderer = new HistoryCalendarRenderer(
+			containerEl,
+			this.app,
+			sourcePath,
+			() => this.settings,
+			parseCalendarOptions(source),
+			() => this.calendarRenderers.delete(renderer),
+		);
+		this.calendarRenderers.add(renderer);
+		return renderer;
+	}
+
+	private async openCalendarView(): Promise<void> {
+		let leaf = this.app.workspace.getLeavesOfType(
+			HISTORY_CALENDAR_VIEW_TYPE,
+		)[0];
+		if (leaf === undefined) {
+			leaf = this.app.workspace.getRightLeaf(false) ?? undefined;
+			if (leaf === undefined) {
+				return;
+			}
+			await leaf.setViewState({
+				type: HISTORY_CALENDAR_VIEW_TYPE,
+				active: true,
+			});
+		}
+
+		this.app.workspace.setActiveLeaf(leaf, { focus: true });
 	}
 
 	async loadSettings(): Promise<void> {
