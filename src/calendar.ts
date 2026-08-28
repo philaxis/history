@@ -435,31 +435,28 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 	private renderEvents(cell: HTMLElement, events: CalendarEvent[]): void {
 		const dots = cell.createSpan({ cls: 'history-calendar__dots' });
 
-		if (this.containerEl.hasClass('history-calendar-view')) {
-			for (const kind of ['ctime', 'history'] as const) {
-				const count = events.filter((event) => event.kind === kind).length;
-				if (count > 0) {
-					dots.createSpan({
-						cls: `history-calendar__count is-${kind}`,
-						text: String(count),
-					});
-				}
-			}
-		} else {
-			for (const event of events.slice(0, MAX_VISIBLE_EVENTS)) {
+		for (const event of events.slice(0, MAX_VISIBLE_EVENTS)) {
+			dots.createSpan({
+				cls: `history-calendar__dot is-${event.kind}`,
+				attr: {
+					'aria-hidden': 'true',
+				},
+			});
+		}
+		if (events.length > MAX_VISIBLE_EVENTS) {
+			const hiddenCount = events.length - MAX_VISIBLE_EVENTS;
+			dots.createSpan({
+				cls: 'history-calendar__more',
+				text: `+${hiddenCount}`,
+				attr: { 'aria-label': this.messages.moreEvents(hiddenCount) },
+			});
+		}
+		for (const kind of ['ctime', 'history'] as const) {
+			const count = events.filter((event) => event.kind === kind).length;
+			if (count > 0) {
 				dots.createSpan({
-					cls: `history-calendar__dot is-${event.kind}`,
-					attr: {
-						'aria-hidden': 'true',
-					},
-				});
-			}
-			if (events.length > MAX_VISIBLE_EVENTS) {
-				const hiddenCount = events.length - MAX_VISIBLE_EVENTS;
-				dots.createSpan({
-					cls: 'history-calendar__more',
-					text: `+${hiddenCount}`,
-					attr: { 'aria-label': this.messages.moreEvents(hiddenCount) },
+					cls: `history-calendar__count is-${kind}`,
+					text: String(count),
 				});
 			}
 		}

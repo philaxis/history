@@ -177,6 +177,7 @@
 }
 
 .history-calendar__count {
+	display: none;
 	font-size: calc(var(--font-ui-small) * 0.9);
 	font-weight: var(--font-semibold);
 	line-height: 1;
@@ -270,6 +271,15 @@
 }
 
 @container history-calendar (max-width: 520px) {
+	.history-calendar__dot,
+	.history-calendar__more {
+		display: none;
+	}
+
+	.history-calendar__count {
+		display: inline;
+	}
+
 	.history-calendar__month-navigation {
 		gap: 2px;
 	}
