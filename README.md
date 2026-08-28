@@ -4,7 +4,7 @@
 
 ![History calendar](./history-calendar.png)
 
-History automatically records when notes and canvases are created or edited, then displays the activity in an interactive calendar. Purple dots mark creation dates, cyan dots mark edit dates, and hovering over a day reveals every file.
+History automatically records when notes and canvases are created or edited, then displays the activity in an interactive calendar. Purple dots mark creation dates, cyan dots mark edit dates, and hovering over a day reveals every file. Narrow calendars switch the dots to compact colored counts.
 
 ## How to use
 
@@ -15,3 +15,6 @@ History automatically records when notes and canvases are created or edited, the
 ```history
 ```
 ````
+3. To keep the same calendar in the right sidebar, run **History: Open history calendar** from the command palette.
+
+Calendar dates also integrate with Obsidian's Daily Notes core plugin. Dates with an existing daily note are bold and underlined; clicking a date opens its note or asks before creating a missing one with your configured folder, format, and template.

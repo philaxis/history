@@ -270,7 +270,20 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 
 		const grid = frame.createDiv({ cls: 'history-calendar__grid' });
 		for (const weekday of this.messages.weekdays) {
-			grid.createDiv({ cls: 'history-calendar__weekday', text: weekday });
+			const weekdayEl = grid.createDiv({
+				cls: 'history-calendar__weekday',
+				attr: { 'aria-label': weekday },
+			});
+			weekdayEl.createSpan({
+				cls: 'history-calendar__weekday-full',
+				text: weekday,
+				attr: { 'aria-hidden': 'true' },
+			});
+			weekdayEl.createSpan({
+				cls: 'history-calendar__weekday-short',
+				text: Array.from(weekday)[0] ?? weekday,
+				attr: { 'aria-hidden': 'true' },
+			});
 		}
 
 		const firstDay = this.visibleMonth.clone().startOf('month');

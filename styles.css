@@ -1,10 +1,13 @@
 .history-calendar {
 	container-name: history-calendar;
 	container-type: inline-size;
-	overflow: visible;
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
 }
 
 .history-calendar__frame {
+	box-sizing: border-box;
+	min-width: 280px;
 	overflow: visible;
 	padding: 10px;
 	border: 1px solid var(--background-modifier-border);
@@ -87,6 +90,10 @@
 	text-align: center;
 }
 
+.history-calendar__weekday-short {
+	display: none;
+}
+
 .history-calendar__day {
 	position: relative;
 	display: flex;
@@ -131,6 +138,10 @@
 .history-calendar__day.is-outside {
 	color: var(--text-faint);
 	background: var(--background-secondary-alt);
+}
+
+.history-calendar__day.is-outside .history-calendar__day-number {
+	opacity: 0.55;
 }
 
 .history-calendar__day.is-today {
@@ -178,7 +189,7 @@
 
 .history-calendar__count {
 	display: none;
-	font-size: calc(var(--font-ui-small) * 0.9);
+	font-size: calc(var(--font-ui-small) * 0.72);
 	font-weight: var(--font-semibold);
 	line-height: 1;
 }
@@ -299,6 +310,14 @@
 }
 
 @container history-calendar (max-width: 320px) {
+	.history-calendar__weekday-full {
+		display: none;
+	}
+
+	.history-calendar__weekday-short {
+		display: inline;
+	}
+
 	.history-calendar__header {
 		grid-template-areas:
 			'left right'
