@@ -23,6 +23,8 @@ export type HistoryMessages = {
 	sidebarCellRatioDescription: string;
 	sidebarFontSize: string;
 	sidebarFontSizeDescription: string;
+	sidebarMarkerSize: string;
+	sidebarMarkerSizeDescription: string;
 	sidebarSettings: string;
 	sidebarMarkerMode: string;
 	sidebarMarkerModeDescription: string;
@@ -68,7 +70,10 @@ const ENGLISH: HistoryMessages = {
 		'Cell width divided by height in the sidebar calendar. Default: 0.6.',
 	sidebarFontSize: 'Sidebar font size',
 	sidebarFontSizeDescription:
-		'Text size multiplier for the sidebar calendar, from 0.5 to 2.0. Default: 1.6.',
+		'Text size multiplier for the sidebar calendar, from 0.5 to 3.0. Default: 2.0.',
+	sidebarMarkerSize: 'Sidebar marker size',
+	sidebarMarkerSizeDescription:
+		'Dot and event-count size multiplier, from 0.5 to 4.0. Default: 2.0.',
 	sidebarSettings: 'Sidebar calendar',
 	sidebarMarkerMode: 'Sidebar markers',
 	sidebarMarkerModeDescription:
@@ -112,7 +117,10 @@ const KOREAN: HistoryMessages = {
 		'사이드바 달력 셀의 가로 ÷ 세로 비율입니다. 기본값: 0.6.',
 	sidebarFontSize: '사이드바 글자 배율',
 	sidebarFontSizeDescription:
-		'사이드바 달력 글자의 크기 배율입니다. 0.5–2.0, 기본값: 1.6.',
+		'사이드바 달력 글자의 크기 배율입니다. 0.5–3.0, 기본값: 2.0.',
+	sidebarMarkerSize: '사이드바 마커 배율',
+	sidebarMarkerSizeDescription:
+		'점과 이벤트 개수 표시의 크기 배율입니다. 0.5–4.0, 기본값: 2.0.',
 	sidebarSettings: '사이드바 달력',
 	sidebarMarkerMode: '사이드바 마커',
 	sidebarMarkerModeDescription:

@@ -10,9 +10,12 @@ import type HistoryPlugin from './main';
 import {
 	DEFAULT_SIDEBAR_CELL_RATIO,
 	DEFAULT_SIDEBAR_FONT_SIZE,
+	DEFAULT_SIDEBAR_MARKER_SIZE,
 	DEFAULT_SIDEBAR_MODE,
-	MAX_CALENDAR_FONT_SIZE,
+	MAX_SIDEBAR_FONT_SIZE,
+	MAX_SIDEBAR_MARKER_SIZE,
 	MIN_CALENDAR_FONT_SIZE,
+	MIN_CALENDAR_MARKER_SIZE,
 } from './calendar-options';
 
 export interface HistorySettings {
@@ -21,6 +24,7 @@ export interface HistorySettings {
 	autoTrackingEnabled: boolean;
 	sidebarCellRatio: number;
 	sidebarFontSize: number;
+	sidebarMarkerSize: number;
 	sidebarMode: 'dots' | 'number';
 }
 
@@ -30,6 +34,7 @@ export const DEFAULT_SETTINGS: HistorySettings = {
 	autoTrackingEnabled: true,
 	sidebarCellRatio: DEFAULT_SIDEBAR_CELL_RATIO,
 	sidebarFontSize: DEFAULT_SIDEBAR_FONT_SIZE,
+	sidebarMarkerSize: DEFAULT_SIDEBAR_MARKER_SIZE,
 	sidebarMode: DEFAULT_SIDEBAR_MODE,
 };
 
@@ -129,7 +134,7 @@ export class HistorySettingTab extends PluginSettingTab {
 			.addText((text) => {
 				text.inputEl.type = 'number';
 				text.inputEl.min = String(MIN_CALENDAR_FONT_SIZE);
-				text.inputEl.max = String(MAX_CALENDAR_FONT_SIZE);
+				text.inputEl.max = String(MAX_SIDEBAR_FONT_SIZE);
 				text.inputEl.step = '0.1';
 				text
 					.setPlaceholder(String(DEFAULT_SETTINGS.sidebarFontSize))
@@ -143,8 +148,35 @@ export class HistorySettingTab extends PluginSettingTab {
 							return;
 						}
 						this.plugin.settings.sidebarFontSize = Math.min(
-							MAX_CALENDAR_FONT_SIZE,
+							MAX_SIDEBAR_FONT_SIZE,
 							Math.max(MIN_CALENDAR_FONT_SIZE, fontSize),
+						);
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(this.containerEl)
+			.setName(messages.sidebarMarkerSize)
+			.setDesc(messages.sidebarMarkerSizeDescription)
+			.addText((text) => {
+				text.inputEl.type = 'number';
+				text.inputEl.min = String(MIN_CALENDAR_MARKER_SIZE);
+				text.inputEl.max = String(MAX_SIDEBAR_MARKER_SIZE);
+				text.inputEl.step = '0.1';
+				text
+					.setPlaceholder(String(DEFAULT_SETTINGS.sidebarMarkerSize))
+					.setValue(String(this.plugin.settings.sidebarMarkerSize))
+					.onChange(async (value) => {
+						if (value.trim() === '') {
+							return;
+						}
+						const markerSize = Number(value);
+						if (!Number.isFinite(markerSize)) {
+							return;
+						}
+						this.plugin.settings.sidebarMarkerSize = Math.min(
+							MAX_SIDEBAR_MARKER_SIZE,
+							Math.max(MIN_CALENDAR_MARKER_SIZE, markerSize),
 						);
 						await this.plugin.saveSettings();
 					});

@@ -6,7 +6,10 @@ import {
 import {
 	DEFAULT_SIDEBAR_CELL_RATIO,
 	DEFAULT_SIDEBAR_FONT_SIZE,
+	DEFAULT_SIDEBAR_MARKER_SIZE,
 	DEFAULT_SIDEBAR_MODE,
+	MAX_SIDEBAR_FONT_SIZE,
+	MAX_SIDEBAR_MARKER_SIZE,
 	parseCalendarOptions,
 } from '../src/calendar-options.ts';
 import {
@@ -113,12 +116,12 @@ assert(
 );
 assert(
 	JSON.stringify(parseCalendarOptions('mode: number\nalign: right')) ===
-		'{"folder":null,"maxWidth":502,"mode":"number","align":"right","ratio":1.2,"fontSize":1}',
+		'{"folder":null,"maxWidth":502,"mode":"number","align":"right","ratio":1.2,"fontSize":1,"markerSize":1.2}',
 	'Calendar number mode or alignment was not parsed.',
 );
 assert(
 	JSON.stringify(parseCalendarOptions('mode: dots\nalign: middle')) ===
-		'{"folder":null,"maxWidth":502,"mode":"auto","align":"left","ratio":1.2,"fontSize":1}',
+		'{"folder":null,"maxWidth":502,"mode":"auto","align":"left","ratio":1.2,"fontSize":1,"markerSize":1.2}',
 	'Invalid calendar display options did not use safe defaults.',
 );
 assert(
@@ -131,9 +134,17 @@ assert(
 	'Calendar font-size multiplier was not parsed or clamped.',
 );
 assert(
+	parseCalendarOptions('marker-size: 1.4').markerSize === 1.4 &&
+		parseCalendarOptions('marker-size: 9').markerSize === 2,
+	'Calendar marker-size multiplier was not parsed or clamped.',
+);
+assert(
 	DEFAULT_SIDEBAR_MODE === 'number' &&
 		DEFAULT_SIDEBAR_CELL_RATIO === 0.6 &&
-		DEFAULT_SIDEBAR_FONT_SIZE === 1.6,
+		DEFAULT_SIDEBAR_FONT_SIZE === 2 &&
+		DEFAULT_SIDEBAR_MARKER_SIZE === 2 &&
+		MAX_SIDEBAR_FONT_SIZE === 3 &&
+		MAX_SIDEBAR_MARKER_SIZE === 4,
 	'Sidebar calendar defaults changed.',
 );
 assert(

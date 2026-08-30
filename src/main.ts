@@ -13,8 +13,10 @@ import {
 } from './calendar';
 import { updateCalendarMaxWidth } from './calendar-width';
 import {
-	MAX_CALENDAR_FONT_SIZE,
+	MAX_SIDEBAR_FONT_SIZE,
+	MAX_SIDEBAR_MARKER_SIZE,
 	MIN_CALENDAR_FONT_SIZE,
+	MIN_CALENDAR_MARKER_SIZE,
 	parseCalendarOptions,
 } from './calendar-options';
 import {
@@ -231,9 +233,15 @@ export default class HistoryPlugin extends Plugin {
 			sidebarFontSize:
 				typeof savedSettings?.sidebarFontSize === 'number' &&
 				savedSettings.sidebarFontSize >= MIN_CALENDAR_FONT_SIZE &&
-				savedSettings.sidebarFontSize <= MAX_CALENDAR_FONT_SIZE
+				savedSettings.sidebarFontSize <= MAX_SIDEBAR_FONT_SIZE
 					? savedSettings.sidebarFontSize
 					: DEFAULT_SETTINGS.sidebarFontSize,
+			sidebarMarkerSize:
+				typeof savedSettings?.sidebarMarkerSize === 'number' &&
+				savedSettings.sidebarMarkerSize >= MIN_CALENDAR_MARKER_SIZE &&
+				savedSettings.sidebarMarkerSize <= MAX_SIDEBAR_MARKER_SIZE
+					? savedSettings.sidebarMarkerSize
+					: DEFAULT_SETTINGS.sidebarMarkerSize,
 			sidebarMode: savedSettings?.sidebarMode === 'dots'
 				? 'dots'
 				: DEFAULT_SETTINGS.sidebarMode,

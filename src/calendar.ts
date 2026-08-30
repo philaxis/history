@@ -20,8 +20,9 @@ import { getCanvasHistory } from './canvas-data';
 import { CANVAS_PROPERTY_NAME, resolveCanvasTarget } from './canvas';
 import { getCalendarScale } from './calendar-width';
 import {
-	DEFAULT_CALENDAR_FONT_SIZE,
 	DEFAULT_SIDEBAR_CELL_RATIO,
+	DEFAULT_SIDEBAR_FONT_SIZE,
+	DEFAULT_SIDEBAR_MARKER_SIZE,
 	type CalendarOptions,
 } from './calendar-options';
 import {
@@ -357,8 +358,11 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 			? this.getSettings().sidebarCellRatio || DEFAULT_SIDEBAR_CELL_RATIO
 			: this.options.ratio;
 		const fontSize = this.isSidebar
-			? this.getSettings().sidebarFontSize || DEFAULT_CALENDAR_FONT_SIZE
+			? this.getSettings().sidebarFontSize || DEFAULT_SIDEBAR_FONT_SIZE
 			: this.options.fontSize;
+		const markerSize = this.isSidebar
+			? this.getSettings().sidebarMarkerSize || DEFAULT_SIDEBAR_MARKER_SIZE
+			: this.options.markerSize;
 		this.containerEl.setCssProps({
 			'--history-calendar-width': scaled === null
 				? this.calendarWidth === null ? '100%' : `${Math.round(this.calendarWidth)}px`
@@ -369,6 +373,7 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 			'--history-calendar-scale': String(scaled?.scale ?? 1),
 			'--history-calendar-cell-height': `${CALENDAR_CONTENT_WIDTH / 7 / cellRatio}px`,
 			'--history-calendar-font-scale': String(fontSize * FONT_SCALE_BASELINE),
+			'--history-calendar-marker-scale': String(markerSize),
 		});
 	}
 

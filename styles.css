@@ -39,6 +39,7 @@
 
 .history-calendar__header-left {
 	justify-self: start;
+	min-width: max-content;
 }
 
 .history-calendar__header-right {
@@ -58,7 +59,9 @@
 }
 
 .history-calendar__button {
+	box-sizing: border-box;
 	height: auto;
+	min-width: max-content;
 	min-height: calc(32px * var(--history-calendar-font-scale, 1));
 	padding: calc(4px * var(--history-calendar-font-scale, 1)) calc(8px * var(--history-calendar-font-scale, 1));
 	border: 1px solid var(--background-modifier-border);
@@ -83,6 +86,7 @@
 }
 
 .history-calendar select.dropdown.history-calendar__date-select {
+	box-sizing: border-box;
 	height: auto !important;
 	min-height: calc(32px * var(--history-calendar-font-scale, 1));
 	width: auto;
@@ -182,11 +186,11 @@
 }
 
 .history-calendar__day.is-today {
-	background: transparent !important;
+	background: color-mix(in srgb, var(--interactive-accent) 18%, transparent) !important;
 }
 
 .history-calendar__day.is-today .history-calendar__day-number {
-	color: var(--color-purple);
+	color: var(--interactive-accent);
 	font-weight: var(--font-bold);
 }
 
@@ -229,8 +233,9 @@
 }
 
 .history-calendar__dot {
-	width: 7px;
-	height: 7px;
+	flex: 0 0 auto;
+	width: calc(7px * var(--history-calendar-marker-scale, 1));
+	height: calc(7px * var(--history-calendar-marker-scale, 1));
 	padding: 0;
 	border: 0;
 	border-radius: 50%;
@@ -246,7 +251,7 @@
 
 .history-calendar__count {
 	display: none;
-	font-size: calc(var(--font-ui-small) * 0.72 * var(--history-calendar-font-scale, 1));
+	font-size: calc(var(--font-ui-small) * 0.72 * var(--history-calendar-marker-scale, 1));
 	font-weight: var(--font-semibold);
 	line-height: 1;
 }
@@ -261,7 +266,7 @@
 
 .history-calendar__more {
 	color: var(--text-muted);
-	font-size: calc(var(--font-ui-smaller) * 1.32);
+	font-size: calc(var(--font-ui-smaller) * 1.32 * var(--history-calendar-marker-scale, 1));
 	font-weight: var(--font-semibold);
 	line-height: 1;
 }
@@ -419,11 +424,11 @@
 	}
 
 	.history-calendar__button {
-		padding: 4px 6px;
+		padding: calc(4px * var(--history-calendar-font-scale, 1)) calc(6px * var(--history-calendar-font-scale, 1));
 	}
 
 	.history-calendar select.dropdown.history-calendar__date-select {
-		font-size: 1em;
+		font-size: calc(1em * var(--history-calendar-font-scale, 1));
 	}
 
 	.history-calendar__day {
@@ -450,7 +455,7 @@
 	}
 
 	.history-calendar__count {
-		font-size: clamp(7px, 3cqi, calc(var(--font-ui-small) * 0.72));
+		font-size: clamp(7px, calc(3cqi * var(--history-calendar-marker-scale, 1)), calc(var(--font-ui-small) * 0.72 * var(--history-calendar-marker-scale, 1)));
 	}
 
 	.history-calendar__header {

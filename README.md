@@ -26,9 +26,10 @@ mode: number
 align: center
 ratio: 1.2
 font-size: 1.0
+marker-size: 1.2
 ```
 ````
 
-`mode: number` always shows purple and mint event counts instead of dots; omit it for automatic display. Dot mode centers six dots on each of two rows before showing `+N` on a centered third row. `align` accepts `left`, `center`, or `right`. Embedded calendars default to `max-width: 502`; `ratio` is cell width divided by height and defaults to `1.2`. `font-size` scales calendar text and button geometry from `0.5` to `2.0` and defaults to `1.0`; `+N` keeps its own 1.32× text size, and width scaling still applies afterward. Sidebar defaults are number markers, ratio `0.6`, and font size `1.6`; all three controls are grouped under the final section in History settings.
+`mode: number` always shows purple and mint event counts instead of dots; omit it for automatic display. Dot mode centers six dots on each of two rows before showing `+N` on a centered third row. `align` accepts `left`, `center`, or `right`. Embedded calendars default to `max-width: 502`; `ratio` is cell width divided by height and defaults to `1.2`. `font-size` scales header, weekday, and date text plus button geometry from `0.5` to `2.0` and defaults to `1.0`. `marker-size` independently scales dots, counts, and `+N` from `0.5` to `2.0` and defaults to `1.2`; width scaling still applies afterward. Sidebar defaults are number markers, ratio `0.6`, font size `2.0` (configurable up to `3.0`), and marker size `2.0` (configurable up to `4.0`); these controls are grouped under the final section in History settings.
 
 Calendar dates also integrate with Obsidian's Daily Notes core plugin. Dates with an existing daily note are bold and underlined; clicking a date opens its note or asks before creating a missing one with your configured folder, format, and template.
