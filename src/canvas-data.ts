@@ -1,4 +1,10 @@
 export const CANVAS_HISTORY_PROPERTY_NAME = 'history';
+const CANVAS_INTERACTION_WINDOW_MS = 5_000;
+
+export interface CanvasInteraction {
+	path: string;
+	occurredAt: number;
+}
 
 function normalizeHistory(value: unknown): unknown[] {
 	return Array.isArray(value) ? value : value == null ? [] : [value];
@@ -23,6 +29,17 @@ export function getCanvasTrackingState(source: string): string {
 	return JSON.stringify(canvas);
 }
 
+export function isRecentCanvasInteraction(
+	interaction: CanvasInteraction | null,
+	path: string,
+	now: number,
+): boolean {
+	const age = interaction === null ? -1 : now - interaction.occurredAt;
+	return interaction?.path === path &&
+		age >= 0 &&
+		age <= CANVAS_INTERACTION_WINDOW_MS;
+}
+
 export function appendCanvasHistoryDate(source: string, date: string): string {
 	const canvas = parseCanvas(source);
 	const history = normalizeHistory(canvas[CANVAS_HISTORY_PROPERTY_NAME]);
@@ -31,5 +48,20 @@ export function appendCanvasHistoryDate(source: string, date: string): string {
 	}
 
 	canvas[CANVAS_HISTORY_PROPERTY_NAME] = [...history, date];
+	return JSON.stringify(canvas);
+}
+
+export function removeCanvasHistoryDate(
+	source: string,
+	date: unknown,
+): string {
+	const canvas = parseCanvas(source);
+	const history = normalizeHistory(canvas[CANVAS_HISTORY_PROPERTY_NAME]);
+	const nextHistory = history.filter((value) => value !== date);
+	if (nextHistory.length === history.length) {
+		return source;
+	}
+
+	canvas[CANVAS_HISTORY_PROPERTY_NAME] = nextHistory;
 	return JSON.stringify(canvas);
 }

@@ -4,6 +4,12 @@
 	overflow: visible;
 }
 
+.history-calendar-view {
+	box-sizing: border-box;
+	width: 100%;
+	padding-inline: 8px;
+}
+
 .history-calendar.is-align-left {
 	margin-inline: 0 auto;
 }
@@ -77,6 +83,11 @@
 
 .history-calendar__button:hover {
 	background: var(--interactive-hover);
+}
+
+.history-calendar__header-left .history-calendar__button svg {
+	width: calc(15px * var(--history-calendar-font-scale, 1));
+	height: calc(15px * var(--history-calendar-font-scale, 1));
 }
 
 .history-calendar__month-navigation > .history-calendar__button {
@@ -228,6 +239,10 @@
 	gap: 3px;
 }
 
+.history-calendar__count-row {
+	flex-direction: column;
+}
+
 .history-calendar__more-row {
 	margin-top: 2px;
 }
@@ -266,7 +281,7 @@
 
 .history-calendar__more {
 	color: var(--text-muted);
-	font-size: calc(var(--font-ui-smaller) * 1.32 * var(--history-calendar-marker-scale, 1));
+	font-size: calc(var(--font-ui-small) * 0.72 * var(--history-calendar-marker-scale, 1));
 	font-weight: var(--font-semibold);
 	line-height: 1;
 }
@@ -351,7 +366,6 @@
 	overflow-x: hidden;
 	overflow-y: auto;
 	overscroll-behavior: contain;
-	scrollbar-gutter: stable;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 6px;
 	background: var(--background-secondary);
@@ -367,9 +381,16 @@
 }
 
 .history-calendar__tooltip > ul {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) max-content;
+	column-gap: 5px;
 	margin: 0;
 	padding: 0;
 	list-style: none;
+}
+
+.history-calendar__tooltip.has-remove-buttons > ul {
+	grid-template-columns: minmax(0, 1fr) max-content 20px;
 }
 
 .history-calendar__tooltip > ul > li {
@@ -379,6 +400,7 @@
 
 .history-calendar__tooltip-link {
 	display: block;
+	grid-column: 1;
 	width: fit-content;
 	max-width: 100%;
 	min-width: 0;
@@ -397,16 +419,39 @@
 }
 
 .history-calendar__tooltip-row {
-	display: flex;
+	display: grid;
+	grid-column: 1 / -1;
+	grid-template-columns: subgrid;
 	align-items: baseline;
 }
 
 .history-calendar__file-type {
-	margin-left: 5px;
+	grid-column: 2;
 	color: var(--text-faint);
 	font-size: 0.72em;
 	font-weight: var(--font-semibold);
 	letter-spacing: 0.04em;
+}
+
+.history-calendar__tooltip-remove {
+	grid-column: 3;
+	width: 20px;
+	min-width: 20px;
+	height: 20px;
+	min-height: 20px;
+	margin-left: 0;
+	padding: 0;
+	border: 0;
+	background: transparent !important;
+	box-shadow: none !important;
+	color: var(--text-faint);
+	font-size: var(--font-ui-small);
+	line-height: 1;
+}
+
+.history-calendar__tooltip-remove:hover,
+.history-calendar__tooltip-remove:focus-visible {
+	color: var(--text-error);
 }
 
 @container history-calendar (max-width: 520px) {

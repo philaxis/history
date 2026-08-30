@@ -22,6 +22,7 @@ export interface HistorySettings {
 	propertyName: string;
 	dateFormat: string;
 	autoTrackingEnabled: boolean;
+	showHistoryDeleteButtons: boolean;
 	sidebarCellRatio: number;
 	sidebarFontSize: number;
 	sidebarMarkerSize: number;
@@ -32,6 +33,7 @@ export const DEFAULT_SETTINGS: HistorySettings = {
 	propertyName: 'history',
 	dateFormat: 'YYYY-MM-DD',
 	autoTrackingEnabled: true,
+	showHistoryDeleteButtons: false,
 	sidebarCellRatio: DEFAULT_SIDEBAR_CELL_RATIO,
 	sidebarFontSize: DEFAULT_SIDEBAR_FONT_SIZE,
 	sidebarMarkerSize: DEFAULT_SIDEBAR_MARKER_SIZE,
@@ -84,6 +86,18 @@ export class HistorySettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.dateFormat)
 					.onChange(async (value) => {
 						this.plugin.settings.dateFormat = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(this.containerEl)
+			.setName(messages.historyDeleteButtons)
+			.setDesc(messages.historyDeleteButtonsDescription)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showHistoryDeleteButtons)
+					.onChange(async (value) => {
+						this.plugin.settings.showHistoryDeleteButtons = value;
 						await this.plugin.saveSettings();
 					}),
 			);

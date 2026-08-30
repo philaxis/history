@@ -2,6 +2,8 @@ import {
 	appendCanvasHistoryDate,
 	getCanvasHistory,
 	getCanvasTrackingState,
+	isRecentCanvasInteraction,
+	removeCanvasHistoryDate,
 } from '../src/canvas-data.ts';
 import {
 	DEFAULT_SIDEBAR_CELL_RATIO,
@@ -42,6 +44,13 @@ assert(
 	'Canvas history contains a duplicate date.',
 );
 assert(
+	removeCanvasHistoryDate(
+		'{"nodes":[],"edges":[],"history":["2026-08-29","2026-08-30"]}',
+		'2026-08-29',
+	) === '{"nodes":[],"edges":[],"history":["2026-08-30"]}',
+	'Canvas history date was not removed independently.',
+);
+assert(
 	Object.keys(JSON.parse(updated) as object).join(',') ===
 		'nodes,edges,history',
 	'Canvas history is not stored at the root.',
@@ -55,7 +64,31 @@ assert(
 		),
 	'History-only Canvas changes were counted.',
 );
+assert(
+	isRecentCanvasInteraction(
+		{ path: 'Map.canvas', occurredAt: 1_000 },
+		'Map.canvas',
+		5_999,
+	) &&
+		!isRecentCanvasInteraction(
+			{ path: 'Map.canvas', occurredAt: 1_000 },
+			'Map.canvas',
+			6_001,
+		) &&
+		!isRecentCanvasInteraction(
+			{ path: 'Other.canvas', occurredAt: 1_000 },
+			'Map.canvas',
+			2_000,
+		) &&
+		!isRecentCanvasInteraction(null, 'Map.canvas', 2_000),
+	'Canvas interaction gate accepted a stale or unrelated input.',
+);
 assert(getHistoryMessages('ko').thisMonth === '이번달', 'Korean locale failed.');
+assert(
+	getHistoryMessages('ko').removeHistoryDatePrompt('노트', '2026-08-30') ===
+		'"노트"의 2026-08-30 히스토리를 삭제할까요?',
+	'Korean history removal confirmation failed.',
+);
 assert(getHistoryMessages('zh').thisMonth === '本月', 'Chinese locale failed.');
 for (const language of ['en', 'ko', 'zh']) {
 	assert(
@@ -142,7 +175,7 @@ assert(
 	DEFAULT_SIDEBAR_MODE === 'number' &&
 		DEFAULT_SIDEBAR_CELL_RATIO === 0.6 &&
 		DEFAULT_SIDEBAR_FONT_SIZE === 2 &&
-		DEFAULT_SIDEBAR_MARKER_SIZE === 2 &&
+		DEFAULT_SIDEBAR_MARKER_SIZE === 3 &&
 		MAX_SIDEBAR_FONT_SIZE === 3 &&
 		MAX_SIDEBAR_MARKER_SIZE === 4,
 	'Sidebar calendar defaults changed.',

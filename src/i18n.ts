@@ -17,8 +17,14 @@ export type HistoryMessages = {
 	dailyNoteCreatePrompt: (date: string) => string;
 	cancel: string;
 	create: string;
+	remove: string;
 	resizeCalendar: string;
 	calendarWidthSaveFailed: string;
+	removeHistoryDate: string;
+	removeHistoryDatePrompt: (name: string, date: string) => string;
+	removeHistoryDateFailed: string;
+	historyDeleteButtons: string;
+	historyDeleteButtonsDescription: string;
 	sidebarCellRatio: string;
 	sidebarCellRatioDescription: string;
 	sidebarFontSize: string;
@@ -63,8 +69,16 @@ const ENGLISH: HistoryMessages = {
 		`The daily note for ${date} does not exist. Create it?`,
 	cancel: 'Cancel',
 	create: 'Create',
+	remove: 'Remove',
 	resizeCalendar: 'Resize calendar',
 	calendarWidthSaveFailed: 'Failed to save the calendar width.',
+	removeHistoryDate: 'Remove this history date',
+	removeHistoryDatePrompt: (name, date) =>
+		`Remove ${date} from the history of "${name}"?`,
+	removeHistoryDateFailed: 'Failed to remove the history date.',
+	historyDeleteButtons: 'History delete buttons',
+	historyDeleteButtonsDescription:
+		'Show an × button for removing individual history dates. Default: off.',
 	sidebarCellRatio: 'Sidebar cell ratio',
 	sidebarCellRatioDescription:
 		'Cell width divided by height in the sidebar calendar. Default: 0.6.',
@@ -73,7 +87,7 @@ const ENGLISH: HistoryMessages = {
 		'Text size multiplier for the sidebar calendar, from 0.5 to 3.0. Default: 2.0.',
 	sidebarMarkerSize: 'Sidebar marker size',
 	sidebarMarkerSizeDescription:
-		'Dot and event-count size multiplier, from 0.5 to 4.0. Default: 2.0.',
+		'Dot and event-count size multiplier, from 0.5 to 4.0. Default: 3.0.',
 	sidebarSettings: 'Sidebar calendar',
 	sidebarMarkerMode: 'Sidebar markers',
 	sidebarMarkerModeDescription:
@@ -82,7 +96,7 @@ const ENGLISH: HistoryMessages = {
 	markerDots: 'Dots',
 	autoTrackEdits: 'Auto-track edits',
 	autoTrackEditsDescription:
-		'Add a date when the active Markdown note or canvas is modified.',
+		'Add a date when you edit the active Markdown note or canvas.',
 	frontmatterProperty: 'Frontmatter property',
 	frontmatterPropertyDescription:
 		'List property used to store Markdown history dates. Canvas always uses history. Default: history.',
@@ -110,8 +124,16 @@ const KOREAN: HistoryMessages = {
 		`${date}의 일일 노트가 없습니다. 생성할까요?`,
 	cancel: '취소',
 	create: '생성',
+	remove: '삭제',
 	resizeCalendar: '달력 크기 조절',
 	calendarWidthSaveFailed: '달력 너비를 저장하지 못했습니다.',
+	removeHistoryDate: '이 히스토리 날짜 삭제',
+	removeHistoryDatePrompt: (name, date) =>
+		`"${name}"의 ${date} 히스토리를 삭제할까요?`,
+	removeHistoryDateFailed: '히스토리 날짜를 삭제하지 못했습니다.',
+	historyDeleteButtons: '히스토리 삭제 버튼',
+	historyDeleteButtonsDescription:
+		'각 히스토리 날짜를 지우는 × 버튼을 표시합니다. 기본값: 꺼짐.',
 	sidebarCellRatio: '사이드바 셀 비율',
 	sidebarCellRatioDescription:
 		'사이드바 달력 셀의 가로 ÷ 세로 비율입니다. 기본값: 0.6.',
@@ -120,7 +142,7 @@ const KOREAN: HistoryMessages = {
 		'사이드바 달력 글자의 크기 배율입니다. 0.5–3.0, 기본값: 2.0.',
 	sidebarMarkerSize: '사이드바 마커 배율',
 	sidebarMarkerSizeDescription:
-		'점과 이벤트 개수 표시의 크기 배율입니다. 0.5–4.0, 기본값: 2.0.',
+		'점과 이벤트 개수 표시의 크기 배율입니다. 0.5–4.0, 기본값: 3.0.',
 	sidebarSettings: '사이드바 달력',
 	sidebarMarkerMode: '사이드바 마커',
 	sidebarMarkerModeDescription:
@@ -129,7 +151,7 @@ const KOREAN: HistoryMessages = {
 	markerDots: '점',
 	autoTrackEdits: '편집 자동 추적',
 	autoTrackEditsDescription:
-		'활성 Markdown 노트나 캔버스가 수정되면 날짜를 추가합니다.',
+		'사용자가 활성 Markdown 노트나 캔버스를 편집하면 날짜를 추가합니다.',
 	frontmatterProperty: '프론트매터 속성',
 	frontmatterPropertyDescription:
 		'Markdown 히스토리 날짜를 저장할 목록 속성입니다. 캔버스는 항상 history를 사용합니다. 기본값: history.',
@@ -148,9 +170,14 @@ const CHINESE: HistoryMessages = {
 	selectMonth: '选择月份',
 	weekdays: ['日', '一', '二', '三', '四', '五', '六'],
 	moreEvents: (count) => `另有 ${count} 个事件`,
+	remove: '删除',
+	removeHistoryDate: '删除此历史日期',
+	removeHistoryDatePrompt: (name, date) =>
+		`要从“${name}”的历史中删除 ${date} 吗？`,
+	removeHistoryDateFailed: '无法删除历史日期。',
 	autoTrackEdits: '自动跟踪编辑',
 	autoTrackEditsDescription:
-		'修改当前 Markdown 笔记或画布时添加日期。',
+		'用户编辑当前 Markdown 笔记或画布时添加日期。',
 	frontmatterProperty: 'Frontmatter 属性',
 	frontmatterPropertyDescription:
 		'用于存储 Markdown 历史日期的列表属性。画布始终使用 history。默认值：history。',

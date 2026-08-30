@@ -1,4 +1,5 @@
 import {
+	FileView,
 	ItemView,
 	moment,
 	parseYaml,
@@ -21,8 +22,11 @@ import {
 } from './calendar-options';
 import {
 	appendCanvasHistoryDate,
+	type CanvasInteraction,
 	getCanvasHistory,
 	getCanvasTrackingState,
+	isRecentCanvasInteraction,
+	removeCanvasHistoryDate,
 } from './canvas-data';
 import { getHistoryMessages } from './i18n';
 import {
@@ -37,6 +41,15 @@ import {
 
 const DEBOUNCE_DELAY_MS = 2_500;
 const HISTORY_CALENDAR_VIEW_TYPE = 'history-calendar-view';
+const CANVAS_EDIT_KEYS = new Set([
+	'ArrowDown',
+	'ArrowLeft',
+	'ArrowRight',
+	'ArrowUp',
+	'Backspace',
+	'Delete',
+	'Enter',
+]);
 
 class HistoryCalendarView extends ItemView {
 	constructor(
@@ -73,7 +86,11 @@ export default class HistoryPlugin extends Plugin {
 	private readonly debounceTimers = new Map<TFile, number>();
 	private readonly filesBeingUpdated = new Set<TFile>();
 	private readonly calendarRenderers = new Set<HistoryCalendarRenderer>();
+	private readonly canvasInteractionDocuments = new WeakSet<Document>();
 	private readonly trackingStates = new Map<TFile, string>();
+	// ponytail: DOM input is the only public edit provenance; replace this gate if Obsidian exposes one.
+	private canvasInteraction: CanvasInteraction | null = null;
+	private canvasPointerPath: string | null = null;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -127,9 +144,22 @@ export default class HistoryPlugin extends Plugin {
 
 		this.registerEvent(
 			this.app.workspace.on('file-open', (file) => {
+				this.canvasPointerPath = null;
 				if (this.isTrackedFile(file)) {
 					void this.rememberTrackingState(file);
 				}
+			}),
+		);
+
+		this.registerCanvasInteractionDocument(
+			this.app.workspace.containerEl.ownerDocument,
+		);
+		this.app.workspace.iterateAllLeaves((leaf) => {
+			this.registerCanvasInteractionDocument(leaf.view.containerEl.ownerDocument);
+		});
+		this.registerEvent(
+			this.app.workspace.on('window-open', (_workspaceWindow, window) => {
+				this.registerCanvasInteractionDocument(window.document);
 			}),
 		);
 
@@ -162,6 +192,8 @@ export default class HistoryPlugin extends Plugin {
 		this.filesBeingUpdated.clear();
 		this.calendarRenderers.clear();
 		this.trackingStates.clear();
+		this.canvasInteraction = null;
+		this.canvasPointerPath = null;
 	}
 
 	createCalendarRenderer(
@@ -179,6 +211,7 @@ export default class HistoryPlugin extends Plugin {
 			parseCalendarOptions(source),
 			onWidthChange,
 			isSidebar,
+			(file, date) => this.removeHistoryDate(file, date),
 			() => this.calendarRenderers.delete(renderer),
 		);
 		this.calendarRenderers.add(renderer);
@@ -225,6 +258,10 @@ export default class HistoryPlugin extends Plugin {
 				typeof savedSettings?.autoTrackingEnabled === 'boolean'
 					? savedSettings.autoTrackingEnabled
 					: DEFAULT_SETTINGS.autoTrackingEnabled,
+			showHistoryDeleteButtons:
+				typeof savedSettings?.showHistoryDeleteButtons === 'boolean'
+					? savedSettings.showHistoryDeleteButtons
+					: DEFAULT_SETTINGS.showHistoryDeleteButtons,
 			sidebarCellRatio:
 				typeof savedSettings?.sidebarCellRatio === 'number' &&
 				savedSettings.sidebarCellRatio > 0
@@ -279,7 +316,7 @@ export default class HistoryPlugin extends Plugin {
 	}
 
 	private handleCanvasModified(file: TFile): void {
-		if (!this.canTrack(file)) {
+		if (!this.canTrack(file, false) || !this.consumeCanvasInteraction(file)) {
 			return;
 		}
 
@@ -290,16 +327,137 @@ export default class HistoryPlugin extends Plugin {
 		);
 	}
 
+	private registerCanvasInteractionDocument(document: Document): void {
+		if (this.canvasInteractionDocuments.has(document)) {
+			return;
+		}
+		this.canvasInteractionDocuments.add(document);
+
+		this.registerDomEvent(
+			document,
+			'pointerdown',
+			(event) => {
+				this.canvasPointerPath = this.getCanvasEventPath(event);
+			},
+			true,
+		);
+		this.registerDomEvent(
+			document,
+			'pointermove',
+			(event) => {
+				const path = this.getCanvasEventPath(event);
+				if (
+					event.buttons !== 0 &&
+					path !== null &&
+					path === this.canvasPointerPath
+				) {
+					this.rememberCanvasInteraction(path);
+				}
+			},
+			true,
+		);
+		const clearPointer = (): void => {
+			this.canvasPointerPath = null;
+		};
+		this.registerDomEvent(document, 'pointerup', clearPointer, true);
+		this.registerDomEvent(document, 'pointercancel', clearPointer, true);
+
+		const remember = (event: Event): void => {
+			const path = this.getCanvasEventPath(event);
+			if (path !== null) {
+				this.rememberCanvasInteraction(path);
+			}
+		};
+		this.registerDomEvent(
+			document,
+			'keydown',
+			(event) => {
+				if (
+					CANVAS_EDIT_KEYS.has(event.key) ||
+					((event.ctrlKey || event.metaKey) &&
+						['d', 'v', 'x', 'y', 'z'].includes(event.key.toLowerCase()))
+				) {
+					remember(event);
+				}
+			},
+			true,
+		);
+		this.registerDomEvent(document, 'beforeinput', remember, true);
+		this.registerDomEvent(document, 'drop', remember, true);
+	}
+
+	private getCanvasEventPath(event: Event): string | null {
+		if (!event.isTrusted) {
+			return null;
+		}
+
+		const eventPath = event.composedPath();
+		let canvasPath: string | null = null;
+		this.app.workspace.iterateAllLeaves((leaf) => {
+			if (
+				canvasPath === null &&
+				leaf.view instanceof FileView &&
+				leaf.view.getViewType() === 'canvas' &&
+				leaf.view.file?.extension === 'canvas' &&
+				eventPath.includes(leaf.view.containerEl)
+			) {
+				canvasPath = leaf.view.file.path;
+			}
+		});
+		return canvasPath;
+	}
+
+	private rememberCanvasInteraction(path: string): void {
+		this.canvasInteraction = {
+			path,
+			occurredAt: Date.now(),
+		};
+	}
+
+	private consumeCanvasInteraction(file: TFile): boolean {
+		const interaction = this.canvasInteraction;
+		if (interaction?.path === file.path) {
+			this.canvasInteraction = null;
+		}
+		return isRecentCanvasInteraction(interaction, file.path, Date.now());
+	}
+
 	private isTrackedFile(file: TFile | null): file is TFile {
 		return file?.extension === 'md' || file?.extension === 'canvas';
 	}
 
-	private canTrack(file: TFile): boolean {
+	private canTrack(file: TFile, requireActive = true): boolean {
 		return (
 			this.settings.autoTrackingEnabled &&
 			!this.filesBeingUpdated.has(file) &&
-			this.app.workspace.getActiveFile()?.path === file.path
+			(!requireActive || this.app.workspace.getActiveFile()?.path === file.path)
 		);
+	}
+
+	private async removeHistoryDate(file: TFile, date: unknown): Promise<void> {
+		this.filesBeingUpdated.add(file);
+		try {
+			if (file.extension === 'canvas') {
+				await this.app.vault.process(file, (content) =>
+					removeCanvasHistoryDate(content, date),
+				);
+			} else {
+				const propertyName =
+					this.settings.propertyName.trim() || DEFAULT_SETTINGS.propertyName;
+				await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+					const typedFrontmatter = frontmatter as Record<string, unknown>;
+					const value = typedFrontmatter[propertyName];
+					const dates = Array.isArray(value) ? value : value == null ? [] : [value];
+					typedFrontmatter[propertyName] = dates.filter(
+						(historyDate) => historyDate !== date,
+					);
+				});
+			}
+
+			this.refreshCalendars();
+		} finally {
+			this.filesBeingUpdated.delete(file);
+		}
 	}
 
 	private scheduleTracking(

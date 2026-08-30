@@ -11,6 +11,7 @@ import {
 	Modal,
 	Notice,
 	Setting,
+	setIcon,
 	type TAbstractFile,
 	TFile,
 	type WorkspaceLeaf,
@@ -46,6 +47,7 @@ const TOOLTIP_MIN_WIDTH = 160;
 const TOOLTIP_MAX_WIDTH = 300;
 const TOOLTIP_CLOSE_DELAY = 150;
 const TOOLTIP_INTENT_DELAY = 300;
+const TOOLTIP_ACTION_GRACE = 500;
 const LINK_PREVIEW_DELAY = 1_000;
 const MIN_RESIZABLE_WIDTH = 160;
 const CALENDAR_BASE_WIDTH = 800;
@@ -59,6 +61,8 @@ interface CalendarEvent {
 	kind: CalendarEventKind;
 	name: string;
 	targetFile: TFile;
+	historyFile?: TFile;
+	historyValue?: unknown;
 }
 
 interface TooltipCandidate {
@@ -66,7 +70,7 @@ interface TooltipCandidate {
 	events: CalendarEvent[];
 }
 
-class DailyNoteCreateModal extends Modal {
+class ConfirmationModal extends Modal {
 	private confirmed = false;
 
 	constructor(
@@ -74,8 +78,9 @@ class DailyNoteCreateModal extends Modal {
 		private readonly title: string,
 		private readonly prompt: string,
 		private readonly cancelLabel: string,
-		private readonly createLabel: string,
+		private readonly confirmLabel: string,
 		private readonly resolve: (confirmed: boolean) => void,
+		private readonly isWarning = false,
 	) {
 		super(app);
 	}
@@ -89,15 +94,18 @@ class DailyNoteCreateModal extends Modal {
 					.setButtonText(this.cancelLabel)
 					.onClick(() => this.close()),
 			)
-			.addButton((button) =>
+			.addButton((button) => {
 				button
-					.setButtonText(this.createLabel)
+					.setButtonText(this.confirmLabel)
 					.setCta()
 					.onClick(() => {
 						this.confirmed = true;
 						this.close();
-					}),
-			);
+					});
+				if (this.isWarning) {
+					button.buttonEl.addClass('mod-warning');
+				}
+			});
 	}
 
 	onClose(): void {
@@ -121,6 +129,8 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 	private tooltipReady = false;
 	private tooltipCandidate: TooltipCandidate | null = null;
 	private tooltipSafeTriangle: [Point, Point, Point] | null = null;
+	private tooltipPreserveDayKey: string | null = null;
+	private tooltipPreserveTimer: number | null = null;
 	private linkPreviewTimer: number | null = null;
 	private calendarWidth: number | null;
 
@@ -132,6 +142,10 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 		private readonly options: CalendarOptions,
 		private readonly onWidthChange: ((width: number) => Promise<void>) | null,
 		private readonly isSidebar: boolean,
+		private readonly onRemoveHistoryDate: (
+			file: TFile,
+			date: unknown,
+		) => Promise<void>,
 		private readonly onDispose: () => void,
 	) {
 		super(containerEl);
@@ -199,6 +213,11 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 			this.getOwnerWindow().cancelAnimationFrame(this.renderFrame);
 			this.renderFrame = null;
 		}
+		if (this.tooltipPreserveTimer !== null) {
+			this.getOwnerWindow().clearTimeout(this.tooltipPreserveTimer);
+			this.tooltipPreserveTimer = null;
+		}
+		this.tooltipPreserveDayKey = null;
 
 		this.closeTooltip();
 		this.onDispose();
@@ -254,6 +273,7 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 				this.visibleMonth = moment().startOf('month');
 				void this.renderCalendar();
 			},
+			'calendar-clock',
 		);
 
 		const monthNavigation = header.createDiv({
@@ -283,6 +303,7 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 		header.createDiv({ cls: 'history-calendar__header-right' });
 
 		const grid = frame.createDiv({ cls: 'history-calendar__grid' });
+		let preservedTooltip: TooltipCandidate | null = null;
 		for (const weekday of this.messages.weekdays) {
 			grid.createDiv({ cls: 'history-calendar__weekday', text: weekday });
 		}
@@ -338,17 +359,27 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 
 			if (events.length > 0) {
 				this.renderEvents(cell, events);
+				if (dayKey === this.tooltipPreserveDayKey) {
+					preservedTooltip = { anchorEl: cell, events };
+				}
 			}
 		}
 
 		if (this.onWidthChange !== null) {
 			this.createResizeHandle();
 		}
+		if (preservedTooltip !== null) {
+			this.showTooltip(preservedTooltip.anchorEl, preservedTooltip.events);
+		}
 	}
 
 	private applyCalendarWidth(): void {
-		const availableWidth =
-			this.containerEl.parentElement?.getBoundingClientRect().width ?? 0;
+		const containerStyle = this.getOwnerWindow().getComputedStyle(this.containerEl);
+		const availableWidth = this.isSidebar
+			? this.containerEl.clientWidth -
+				parseFloat(containerStyle.paddingLeft) -
+				parseFloat(containerStyle.paddingRight)
+			: this.containerEl.parentElement?.getBoundingClientRect().width ?? 0;
 		const scaled = getCalendarScale(
 			this.calendarWidth,
 			availableWidth,
@@ -495,6 +526,8 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 					kind: 'history',
 					name: displayName,
 					targetFile,
+					historyFile: file,
+					historyValue: historyDate,
 				});
 			}
 		}
@@ -528,6 +561,8 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 						kind: 'history',
 						name: file.basename,
 						targetFile: file,
+						historyFile: file,
+						historyValue: historyDate,
 					});
 				}
 			}
@@ -662,13 +697,28 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 
 	private confirmDailyNoteCreation(date: MomentValue): Promise<boolean> {
 		return new Promise((resolve) => {
-			new DailyNoteCreateModal(
+			new ConfirmationModal(
 				this.app,
 				this.messages.dailyNoteCreateTitle,
 				this.messages.dailyNoteCreatePrompt(date.format('LL')),
 				this.messages.cancel,
 				this.messages.create,
 				resolve,
+			).open();
+		});
+	}
+
+	private confirmHistoryRemoval(event: CalendarEvent): Promise<boolean> {
+		const date = this.toDayKey(event.historyValue) ?? String(event.historyValue);
+		return new Promise((resolve) => {
+			new ConfirmationModal(
+				this.app,
+				this.messages.removeHistoryDate,
+				this.messages.removeHistoryDatePrompt(event.name, date),
+				this.messages.cancel,
+				this.messages.remove,
+				resolve,
+				true,
 			).open();
 		});
 	}
@@ -684,6 +734,12 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 		const tooltip = this.containerEl.ownerDocument.body.createDiv({
 			cls: 'history-calendar__tooltip markdown-rendered',
 		});
+		if (
+			this.getSettings().showHistoryDeleteButtons &&
+			events.some((event) => event.kind === 'history')
+		) {
+			tooltip.addClass('has-remove-buttons');
+		}
 
 		tooltip.addEventListener('pointerenter', () => {
 			this.cancelTooltipClose();
@@ -761,12 +817,50 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 				'history-calendar__tooltip-link',
 				`is-${event.kind}`,
 			);
+			const row = link.parentElement;
+			row?.addClass('history-calendar__tooltip-row');
 			if (event.targetFile.extension === 'canvas') {
-				const row = link.parentElement;
-				row?.addClass('history-calendar__tooltip-row');
 				row?.createSpan({
 					cls: 'history-calendar__file-type',
 					text: 'CANVAS',
+				});
+			}
+			if (event.kind === 'history' && tooltip.hasClass('has-remove-buttons')) {
+				const removeButton = row?.createEl('button', {
+					cls: 'history-calendar__tooltip-remove',
+					text: '×',
+					attr: {
+						type: 'button',
+						'aria-label': this.messages.removeHistoryDate,
+					},
+				});
+				removeButton?.addEventListener('click', (mouseEvent) => {
+					mouseEvent.preventDefault();
+					mouseEvent.stopPropagation();
+					const dayKey = this.toDayKey(event.historyValue);
+					if (dayKey !== null) {
+						this.preserveTooltip(dayKey);
+					}
+					removeButton.disabled = true;
+					void (async () => {
+						try {
+							if (!(await this.confirmHistoryRemoval(event))) {
+								return;
+							}
+							await this.onRemoveHistoryDate(
+								event.historyFile ?? event.targetFile,
+								event.historyValue,
+							);
+						} catch (error) {
+							console.error('Failed to remove a history date.', error);
+							new Notice(this.messages.removeHistoryDateFailed);
+						} finally {
+							if (removeButton.isConnected) {
+								removeButton.disabled = false;
+							}
+							this.releaseTooltipPreservation();
+						}
+					})();
 				});
 			}
 			this.bindTooltipLink(link, event);
@@ -1050,6 +1144,9 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 
 	private scheduleTooltipClose(delay = TOOLTIP_CLOSE_DELAY): void {
 		this.cancelTooltipClose();
+		if (this.tooltipPreserveDayKey !== null) {
+			return;
+		}
 		this.tooltipCloseTimer = this.getOwnerWindow().setTimeout(() => {
 			this.tooltipCloseTimer = null;
 
@@ -1084,6 +1181,26 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 
 			this.closeTooltip();
 		}, delay);
+	}
+
+	private preserveTooltip(dayKey: string): void {
+		if (this.tooltipPreserveTimer !== null) {
+			this.getOwnerWindow().clearTimeout(this.tooltipPreserveTimer);
+			this.tooltipPreserveTimer = null;
+		}
+		this.tooltipPreserveDayKey = dayKey;
+		this.cancelTooltipClose();
+	}
+
+	private releaseTooltipPreservation(): void {
+		if (this.tooltipPreserveDayKey === null) {
+			return;
+		}
+		this.tooltipPreserveTimer = this.getOwnerWindow().setTimeout(() => {
+			this.tooltipPreserveTimer = null;
+			this.tooltipPreserveDayKey = null;
+			this.scheduleTooltipClose();
+		}, TOOLTIP_ACTION_GRACE);
 	}
 
 	private cancelTooltipClose(): void {
@@ -1156,12 +1273,17 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 		text: string,
 		label: string,
 		onClick: () => void,
+		icon?: string,
 	): void {
 		const button = container.createEl('button', {
 			cls: 'history-calendar__button',
 			text,
-			attr: { 'aria-label': label, title: label, type: 'button' },
+			attr: { 'aria-label': label, type: 'button' },
 		});
+		if (icon !== undefined) {
+			button.empty();
+			setIcon(button, icon);
+		}
 		button.addEventListener('click', onClick);
 	}
 
@@ -1174,7 +1296,6 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 		]);
 		dropdown.selectEl.setAttrs({
 			'aria-label': this.messages.selectYear,
-			title: this.messages.selectYear,
 		});
 
 		for (let year = selectedYear - 10; year <= selectedYear + 10; year += 1) {
@@ -1196,7 +1317,6 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 		]);
 		dropdown.selectEl.setAttrs({
 			'aria-label': this.messages.selectMonth,
-			title: this.messages.selectMonth,
 		});
 
 		for (let month = 0; month < 12; month += 1) {
