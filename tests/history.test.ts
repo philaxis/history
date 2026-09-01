@@ -14,6 +14,7 @@ import {
 	MAX_SIDEBAR_MARKER_SIZE,
 	parseCalendarOptions,
 } from '../src/calendar-options.ts';
+import { shouldDisplayCalendarEvent } from '../src/calendar-event-policy.ts';
 import {
 	getCalendarScale,
 	updateCalendarMaxWidth,
@@ -31,6 +32,38 @@ function assert(condition: boolean, message: string): asserts condition {
 		throw new Error(message);
 	}
 }
+
+const actualCreatedDay = '2026-08-05';
+const representedDailyNoteDay = '2026-08-10';
+
+assert(
+	!shouldDisplayCalendarEvent(
+		'ctime',
+		actualCreatedDay,
+		representedDailyNoteDay,
+	),
+	'Daily note creation was displayed.',
+);
+assert(
+	shouldDisplayCalendarEvent(
+		'history',
+		actualCreatedDay,
+		representedDailyNoteDay,
+	),
+	'Daily note history on its actual creation day was hidden.',
+);
+assert(
+	!shouldDisplayCalendarEvent(
+		'history',
+		representedDailyNoteDay,
+		representedDailyNoteDay,
+	),
+	'Daily note history on its represented date was displayed.',
+);
+assert(
+	shouldDisplayCalendarEvent('ctime', '2026-08-05', null),
+	'Creation for a non-daily note was hidden.',
+);
 
 const source = JSON.stringify({ nodes: [], edges: [] });
 const updated = appendCanvasHistoryDate(source, '2026-08-28');

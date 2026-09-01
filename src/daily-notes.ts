@@ -75,6 +75,27 @@ export function getDailyNotePath(
 	return path.toLowerCase().endsWith('.md') ? path : `${path}.md`;
 }
 
+export function getDailyNoteDate(
+	file: TFile,
+	settings: DailyNoteSettings,
+): MomentValue | null {
+	const filePath = normalizePath(file.path);
+	const folder = settings.folder ? normalizePath(settings.folder) : '';
+	const folderPrefix = folder ? `${folder}/` : '';
+	if (
+		!filePath.toLowerCase().endsWith('.md') ||
+		(folderPrefix && !filePath.startsWith(folderPrefix))
+	) {
+		return null;
+	}
+
+	const dateSource = filePath.slice(folderPrefix.length, -3);
+	const date = moment(dateSource, settings.format, true);
+	return date.isValid() && getDailyNotePath(date, settings) === filePath
+		? date
+		: null;
+}
+
 export function getDailyNote(
 	app: App,
 	date: MomentValue,

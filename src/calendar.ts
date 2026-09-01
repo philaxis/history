@@ -27,7 +27,12 @@ import {
 	type CalendarOptions,
 } from './calendar-options';
 import {
+	type CalendarEventKind,
+	shouldDisplayCalendarEvent,
+} from './calendar-event-policy';
+import {
 	getDailyNote,
+	getDailyNoteDate,
 	getDailyNoteSettings,
 	getOrCreateDailyNote,
 } from './daily-notes';
@@ -54,7 +59,6 @@ const CALENDAR_BASE_WIDTH = 800;
 const CALENDAR_CONTENT_WIDTH = CALENDAR_BASE_WIDTH - 20;
 const FONT_SCALE_BASELINE = 1.2;
 
-type CalendarEventKind = 'ctime' | 'history';
 type MomentValue = ReturnType<typeof moment>;
 
 interface CalendarEvent {
@@ -487,6 +491,7 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 		const eventsByDay = new Map<string, Map<string, CalendarEvent>>();
 		const propertyName =
 			this.getSettings().propertyName.trim() || 'history';
+		const dailyNoteSettings = getDailyNoteSettings(this.app);
 
 		for (const file of this.app.vault.getMarkdownFiles()) {
 			if (!this.includesFile(file)) {
@@ -502,12 +507,18 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 			const targetFile = canvasTarget ?? file;
 			const displayName = canvasTarget?.basename ?? file.basename;
 			const createdDay = moment(targetFile.stat.ctime).format(DAY_KEY_FORMAT);
+			const dailyNoteDay = dailyNoteSettings === null
+				? null
+				: getDailyNoteDate(file, dailyNoteSettings)?.format(DAY_KEY_FORMAT) ??
+					null;
 
-			this.addEvent(eventsByDay, createdDay, targetFile.path, {
-				kind: 'ctime',
-				name: displayName,
-				targetFile,
-			});
+			if (shouldDisplayCalendarEvent('ctime', createdDay, dailyNoteDay)) {
+				this.addEvent(eventsByDay, createdDay, targetFile.path, {
+					kind: 'ctime',
+					name: displayName,
+					targetFile,
+				});
+			}
 
 			const historyValue: unknown = frontmatter?.[propertyName];
 			const historyDates = Array.isArray(historyValue)
@@ -519,6 +530,9 @@ export class HistoryCalendarRenderer extends MarkdownRenderChild {
 			for (const historyDate of historyDates) {
 				const historyDay = this.toDayKey(historyDate);
 				if (historyDay === null) {
+					continue;
+				}
+				if (!shouldDisplayCalendarEvent('history', historyDay, dailyNoteDay)) {
 					continue;
 				}
 
